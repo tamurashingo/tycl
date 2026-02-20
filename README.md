@@ -37,7 +37,7 @@ Intuitive type annotations using `[]` (brackets):
 Accept multiple types:
 
 ```lisp
-(defun [process :void] ([value (:integer | :string)])
+(defun [process :void] ([value (:integer :string)])
   (typecase value
     (integer (handle-number value))
     (string (handle-string value))))
@@ -48,15 +48,19 @@ Accept multiple types:
 Data structures with type parameters:
 
 ```lisp
-;; Specify element type for lists
-(defun [sum-list :integer] ([nums (:list :integer)])
+;; Specify element type for lists (Java: List<Integer>)
+(defun [sum-list :integer] ([nums (:list (:integer))])
   (reduce #'+ nums :initial-value 0))
 
-;; Hash tables
-(defun [lookup (:string | :null)] 
-       ([table (:hash-table :string :string)]
+;; Hash tables (Java: Map<String, String>)
+(defun [lookup (:string :null)] 
+       ([table (:hash-table (:string) (:string))]
         [key :string])
   (gethash key table))
+
+;; Nested generics (Java: List<List<String>>)
+(defun [matrix (:list (:list (:string)))] ()
+  ...)
 ```
 
 ### Type Aliases
@@ -65,8 +69,8 @@ Reusable type definitions:
 
 ```lisp
 (deftype-alias UserID :integer)
-(deftype-alias (Maybe <T>) (T | :null))
-(deftype-alias (Result <T E>) (:ok T) | (:error E))
+(deftype-alias (Maybe <T>) (T :null))
+(deftype-alias (Result <T E>) (:ok T) (:error E))
 
 (defun [find-user (Maybe User)] ([id UserID])
   (lookup-database id))
