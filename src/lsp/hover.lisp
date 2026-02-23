@@ -55,9 +55,13 @@
             (eq (car type-spec) :function))
         (let ((params (second type-spec))
               (return-type (third type-spec)))
-          (format nil "```commonlisp~%(defun ~A (~{~A~^ ~}) -> ~A)~%```"
+          (format nil "```commonlisp~%(defun ~A (~{~A~^ ~})~%  => ~A)~%```"
                  (type-info-name info)
-                 (mapcar #'format-type-spec params)
+                 (mapcar (lambda (param)
+                          (format nil "[~A ~A]"
+                                  (getf param :name)
+                                  (format-type-spec (getf param :type))))
+                        params)
                  (format-type-spec return-type)))
         (format nil "```commonlisp~%(defun ~A ...)~%```"
                (type-info-name info)))))

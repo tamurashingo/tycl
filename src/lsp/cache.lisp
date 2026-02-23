@@ -65,16 +65,29 @@
                                  :kind kind
                                  :name symbol-name
                                  :type-spec (case kind
-                                             (:function (getf props :return))
-                                             (:value (getf props :type))
-                                             (:method (getf props :return))
-                                             (:class :class))
+                                             (:function 
+                                              ;; Store as (:function params return-type)
+                                              (list :function
+                                                    (getf props :params)
+                                                    (getf props :return)))
+                                             (:method
+                                              ;; Store as (:function params return-type)
+                                              (list :function
+                                                    (getf props :params)
+                                                    (getf props :return)))
+                                             (:value 
+                                              ;; Just the type
+                                              (getf props :type))
+                                             (:class 
+                                              ;; Store class info
+                                              (list :class
+                                                    (getf props :slots)
+                                                    (getf props :superclasses))))
                                  :location (cons (namestring filepath) 0))))
                       (when *debug-mode*
-                        (format *error-output* "~%[Cache]     Symbol: ~A (~A)~%" 
-                                symbol-name kind))
-                      (setf (gethash symbol-name package-table) info))))))))))))
-(defun load-workspace-types (root-path)
+                        (format *error-output* "~%[Cache]     Symbol: ~A (~A) type-spec: ~A~%" 
+                                symbol-name kind (type-info-type-spec info)))
+                      (setf (gethash symbol-name package-table) info)))))))))))))(defun load-workspace-types (root-path)
   "Load all type information from workspace"
   (when *debug-mode*
     (format *error-output* "~%[Cache] Loading workspace types from: ~A~%" root-path))
