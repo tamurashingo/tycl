@@ -1,0 +1,23 @@
+;;;; Generic types test
+(in-package #:cl-user)
+
+(defun [create-int-list (:list (:integer))] ()
+  '(1 2 3 4 5))
+
+(defun [sum-list :integer] ([nums (:list (:integer))])
+  (reduce #'+ nums :initial-value 0))
+
+(defun [create-string-int-hash (:hash-table (:string) (:integer))] ()
+  (let ((h (make-hash-table :test 'equal)))
+    (setf (gethash "one" h) 1)
+    (setf (gethash "two" h) 2)
+    h))
+
+;; Test execution
+(format t "Generic types test:~%")
+(let ((lst (create-int-list))
+      (h (create-string-int-hash)))
+  (format t "  create-int-list: ~A~%" lst)
+  (format t "  sum-list: ~A~%" (sum-list lst))
+  (format t "  create-string-int-hash keys: ~A~%" (loop for k being the hash-keys of h collect k))
+  (format t "All tests passed!~%"))

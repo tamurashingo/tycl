@@ -1,0 +1,23 @@
+;;;; defclass test
+(in-package #:cl-user)
+
+(defclass person ()
+  (([name :string]
+    :initarg :name
+    :accessor person-name)
+   ([age :integer]
+    :initarg :age
+    :accessor person-age)))
+
+(defmethod [greet :string] ([p person])
+  (format nil "Hello, I'm ~A and I'm ~A years old." 
+          (person-name p) 
+          (person-age p)))
+
+;; Test execution
+(format t "defclass test:~%")
+(let ((p (make-instance 'person :name "Bob" :age 25)))
+  (format t "  person-name: ~A~%" (person-name p))
+  (format t "  person-age: ~A~%" (person-age p))
+  (format t "  greet: ~A~%" (greet p))
+  (format t "All tests passed!~%"))

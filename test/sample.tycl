@@ -1,0 +1,104 @@
+;;;; TyCL Sample File for Phase 5 Testing
+;;;; Tests type information extraction and storage
+
+(in-package #:cl-user)
+
+;;; Basic function types
+(defun [add :integer] ([x :integer] [y :integer])
+  "Add two integers"
+  (+ x y))
+
+(defun [greet :string] ([name :string])
+  "Greet a person by name"
+  (format nil "Hello, ~A!" name))
+
+;;; Union types
+(defun [process-value :string] ([value (:integer :string)])
+  "Process a value that can be either integer or string"
+  (etypecase value
+    (integer (format nil "Number: ~D" value))
+    (string (format nil "String: ~A" value))))
+
+;;; Generic types (collections)
+(defun [get-names (:list (:string))] ()
+  "Return a list of strings"
+  '("Alice" "Bob" "Charlie"))
+
+(defun [sum-list :integer] ([numbers (:list (:integer))])
+  "Sum a list of integers"
+  (reduce #'+ numbers :initial-value 0))
+
+;;; Complex generic types
+(defun [make-cache (:hash-table (:string) (:integer))] ()
+  "Create a hash table mapping strings to integers"
+  (let ((cache (make-hash-table :test 'equal)))
+    (setf (gethash "one" cache) 1)
+    (setf (gethash "two" cache) 2)
+    cache))
+
+;;; Global variables
+(defvar [*config* (:hash-table (:string) (:string))] 
+  (make-hash-table :test 'equal)
+  "Global configuration")
+
+(defparameter [*max-count* :integer] 100
+  "Maximum count")
+
+(defconstant [+pi+ :double-float] 3.14159d0
+  "Pi constant")
+
+;;; Class definition
+(defclass person ()
+  (([name :string]
+    :initarg :name
+    :accessor person-name
+    :documentation "Person's name")
+   ([age :integer]
+    :initarg :age
+    :accessor person-age
+    :documentation "Person's age")
+   ([email :string]
+    :initarg :email
+    :initform ""
+    :accessor person-email
+    :documentation "Person's email")))
+
+(defclass employee (person)
+  (([employee-id :integer]
+    :initarg :employee-id
+    :accessor employee-id)
+   ([salary :double-float]
+    :initarg :salary
+    :accessor employee-salary)))
+
+;;; Method definition
+(defmethod [display :string] ([p person])
+  "Display person information"
+  (format nil "~A (~D)" (person-name p) (person-age p)))
+
+(defmethod [display :string] ([e employee])
+  "Display employee information"
+  (format nil "Employee ~A: ~A (~D)"
+          (employee-id e)
+          (person-name e)
+          (person-age e)))
+
+;;; Local variables (should not be saved)
+(defun [test-local :void] ()
+  "Test local variable types"
+  (let (([x :integer] 10)
+        ([y :string] "hello")
+        (z 20))
+    (format t "x=~A y=~A z=~A~%" x y z)))
+
+;;; Nested generics
+(defun [nested-data (:list (:list (:integer)))] ()
+  "Return nested list structure"
+  '((1 2 3) (4 5 6) (7 8 9)))
+
+(defun [complex-map (:hash-table (:string) (:list (:integer)))] ()
+  "Return hash table with list values"
+  (let ((map (make-hash-table :test 'equal)))
+    (setf (gethash "primes" map) '(2 3 5 7 11))
+    (setf (gethash "evens" map) '(2 4 6 8 10))
+    map))

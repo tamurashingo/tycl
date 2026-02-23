@@ -1,0 +1,110 @@
+{
+  "name": "tycl",
+  "displayName": "TyCL Language Support",
+  "description": "Language support for TyCL (Typed Common Lisp) with LSP integration",
+  "version": "0.1.0",
+  "publisher": "tycl",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tamurashingo/tycl"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "keywords": [
+    "tycl",
+    "lisp",
+    "common lisp",
+    "typed lisp"
+  ],
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "lint": "eslint src --ext ts",
+    "package": "vsce package"
+  },
+  "activationEvents": [
+    "onLanguage:tycl"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "tycl",
+        "aliases": [
+          "TyCL",
+          "tycl"
+        ],
+        "extensions": [
+          ".tycl"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "tycl",
+        "scopeName": "source.tycl",
+        "path": "./syntaxes/tycl.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "TyCL",
+      "properties": {
+        "tycl.lsp.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable TyCL Language Server"
+        },
+        "tycl.lsp.serverPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to TyCL installation directory (leave empty to use system PATH)"
+        },
+        "tycl.lsp.executable": {
+          "type": "string",
+          "default": "ros",
+          "description": "Roswell executable name or path"
+        },
+        "tycl.lsp.args": {
+          "type": "array",
+          "default": [
+            "run",
+            "roswell/tycl.ros",
+            "lsp"
+          ],
+          "description": "Arguments for TyCL LSP server"
+        },
+        "tycl.lsp.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Traces the communication between VS Code and the language server"
+        }
+      }
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.75.0",
+    "@typescript-eslint/eslint-plugin": "^5.50.0",
+    "@typescript-eslint/parser": "^5.50.0",
+    "eslint": "^8.33.0",
+    "typescript": "^4.9.5",
+    "@vscode/vsce": "^2.18.0"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^8.1.0"
+  }
+}

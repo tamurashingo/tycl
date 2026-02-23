@@ -1,0 +1,19 @@
+;;;; Let binding test
+(in-package #:cl-user)
+
+(defun [test-let :integer] ()
+  (let (([x :integer] 10)
+        ([y :integer] 20)
+        (z 30))
+    (+ x y z)))
+
+(defun [test-let* :string] ()
+  (let* (([name :string] "Alice")
+         ([greeting :string] (concatenate 'string "Hello, " name)))
+    greeting))
+
+;; Test execution
+(format t "Let binding test:~%")
+(format t "  test-let: ~A~%" (test-let))
+(format t "  test-let*: ~A~%" (test-let*))
+(format t "All tests passed!~%")

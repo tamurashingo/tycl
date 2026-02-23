@@ -1,0 +1,14 @@
+;;;; Union types test
+(in-package #:cl-user)
+
+(defun [process (:integer :string)] ([x (:integer :string)])
+  (typecase x
+    (integer (* x 2))
+    (string (concatenate 'string x x))
+    (t nil)))
+
+;; Test execution
+(format t "Union types test:~%")
+(format t "  process(10): ~A~%" (process 10))
+(format t "  process(\"hi\"): ~A~%" (process "hi"))
+(format t "All tests passed!~%")

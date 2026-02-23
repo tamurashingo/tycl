@@ -1,0 +1,5 @@
+;;;; TyCL Example with Invalid Type
+
+(defun [bad-func :invalid-type] ([x :integer])
+  "This should fail type checking"
+  x)

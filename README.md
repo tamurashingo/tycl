@@ -89,32 +89,234 @@ Reusable type definitions:
 
 ## Usage
 
-### Basic Usage
+### Command Line Interface
 
-```lisp
-;; Enable TyCL readtable
-(tycl:enable)
+TyCL provides a command-line tool for transpiling and type checking:
 
-;; Define typed function
-(defun [fibonacci :integer] ([n :integer])
-  (if (<= n 1)
-      n
-      (+ (fibonacci (- n 1))
-         (fibonacci (- n 2)))))
+```bash
+# Transpile a .tycl file to .lisp
+tycl transpile src/example.tycl
 
-;; Check type information
-(tycl:get-type-info 'fibonacci)
-;; => (:function (:integer) :integer)
+# Transpile with custom output path
+tycl transpile src/example.tycl build/example.lisp
+
+# Check type annotations
+tycl check src/example.tycl
+
+# Show help
+tycl help
 ```
 
-### LSP Integration ????
+**Installation:**
+
+```bash
+# Install using make (requires roswell)
+make install
+
+# Or install directly with roswell
+ros install roswell/tycl.ros
+```
+
+### Loading TyCL Files
+
+```lisp
+;; Load and transpile a .tycl file
+(tycl:load-tycl "src/example.tycl")
+
+;; With options
+(tycl:load-tycl "src/example.tycl" 
+                :output-dir "build"        ; Output directory
+                :if-exists :overwrite      ; Overwrite existing files
+                :compile t)                ; Compile before loading
+
+;; Or use shorthand
+(tycl:compile-and-load-tycl "src/example.tycl" :if-exists :overwrite)
+```
+
+### Transpiling Files
+
+```lisp
+;; Transpile a single file
+(tycl:transpile-file "src/example.tycl" "src/example.lisp")
+
+;; Transpile a string
+(tycl:transpile-string 
+  "(defun [add :integer] ([x :integer] [y :integer]) (+ x y))")
+```
+
+### Type Checking
+
+```lisp
+;; Check types in a file
+(tycl:check-file "src/example.tycl")
+;; => T (no errors) or NIL (errors found)
+
+;; Check types in a string
+(tycl:check-string "(defun [add :integer] ([x :integer]) x)")
+;; => T
+```
+
+### Type Information Storage (Planned)
+
+**Note: This feature is planned for future implementation.**
+
+When using `load-tycl` or `tycl transpile`, TyCL will collect and store type information during transpilation:
+- Which package
+- Which function/variable/class
+- What type it has
+
+This enables:
+1. Post-transpilation type consistency checks
+2. LSP server type information queries
+3. Cross-package type dependency tracking
+4. Type-based documentation generation
+
+Type information is saved in `.tycl-types` files alongside the transpiled code.
+
+### Custom Macro Support (Planned)
+
+**Note: Design phase. Implementation pending.**
+
+TyCL supports custom macros through a hook mechanism. This allows extracting type information from project-specific macro definitions:
+
+```lisp
+;; Register a type extractor for custom macros
+(tycl:register-type-extractor 'my-framework:define-entity
+  :kind :class
+  :symbol-extractor (lambda (form) (second form))
+  :type-extractor (lambda (form)
+                   (extract-entity-type-info form)))
+```
+
+Or use a configuration file (`tycl-hooks.lisp`) in your project root:
+
+```lisp
+;;;; tycl-hooks.lisp
+
+(in-package #:tycl/hooks)
+
+;; Support for define-entity macro
+(register-type-extractor 'my-framework:define-entity
+  :kind :class
+  :symbol-extractor #'extract-entity-name
+  :type-extractor #'extract-entity-fields)
+```
+
+This allows TyCL to understand and extract type information from any custom DSL or macro system.
+
+### LSP Integration
+
+TyCL provides a Language Server Protocol implementation for modern editor integration.
+
+#### Starting LSP Server
+
+```bash
+# Via Roswell script
+ros run roswell/tycl.ros lsp
+
+# Or via command line tool
+tycl lsp
+```
+
+#### Editor Clients
+
+##### VS Code
+
+A full-featured VS Code extension is available in `clients/vscode/`:
+
+```bash
+cd clients/vscode
+npm install
+npm run compile
+npm run package
+code --install-extension tycl-0.1.0.vsix
+```
+
+Configuration example (`.vscode/settings.json`):
 
 ```json
-// .vscode/settings.json (example)
 {
   "tycl.lsp.enabled": true,
-  "tycl.typeChecking": "strict"
+  "tycl.lsp.serverPath": "/path/to/tycl"
 }
+```
+
+See [clients/vscode/README.md](clients/vscode/README.md) for details.
+
+##### Emacs
+
+Install `tycl-mode` from `clients/emacs/`:
+
+```elisp
+(add-to-list 'load-path "/path/to/tycl/clients/emacs")
+(require 'tycl-mode)
+
+;; With lsp-mode
+(use-package lsp-mode
+  :hook (tycl-mode . lsp-deferred))
+
+;; Optional: specify TyCL installation path
+(setq tycl-lsp-server-root-path "/path/to/tycl")
+```
+
+See [clients/emacs/README.md](clients/emacs/README.md) for details.
+
+##### Vim/Neovim
+
+Configure with coc.nvim or other LSP clients:
+
+```json
+{
+  "languageserver": {
+    "tycl": {
+      "command": "ros",
+      "args": ["run", "roswell/tycl.ros", "lsp"],
+      "filetypes": ["tycl", "lisp"],
+      "rootPatterns": ["tycl.asd", ".git"]
+    }
+  }
+}
+```
+
+#### LSP Features
+
+- **Hover**: Show type information for symbols
+- **Completion**: Context-aware code completion
+- **Diagnostics**: Real-time type checking and error detection
+- **Go to Definition**: Navigate to symbol definitions
+- **Find References**: Locate all uses of a symbol
+- **Document Symbols**: Outline view of file structure
+
+See [docs/lsp-server.md](docs/lsp-server.md) for implementation details.
+
+## Development
+
+### Project Structure
+
+```
+tycl/
+├── src/              # Core transpiler and type checker
+├── test/             # Test suite
+├── roswell/          # CLI tools
+├── clients/          # Editor clients
+│   ├── emacs/       # Emacs tycl-mode
+│   └── vscode/      # VS Code extension
+└── docs/             # Documentation
+    ├── design.md         # Design specification
+    └── lsp-server.md     # LSP server design
+```
+
+### Running Tests
+
+```bash
+# Run all tests
+make test
+
+# Unit tests only
+make test.unit
+
+# CLI integration tests
+make test.cli
 ```
 
 ## License

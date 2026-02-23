@@ -1,0 +1,38 @@
+;;;; TyCL Example File
+;;;; Demonstrates type annotations
+
+(defpackage #:tycl-example
+  (:use #:cl))
+
+(in-package #:tycl-example)
+
+;; Simple typed function
+(defun [add :integer] ([x :integer] [y :integer])
+  "Add two integers"
+  (+ x y))
+
+;; Function with union types
+(defun [process-value :string] ([value (:integer :string)])
+  "Process a value that can be integer or string"
+  (typecase value
+    (integer (format nil "Number: ~A" value))
+    (string (format nil "String: ~A" value))
+    (t "Unknown")))
+
+;; Function with generics
+(defun [sum-list :integer] ([nums (:list (:integer))])
+  "Sum a list of integers"
+  (reduce #'+ nums :initial-value 0))
+
+;; Local function with types
+(defun [calculate :integer] ([x :integer])
+  (flet (([square :integer] ([n :integer])
+           (* n n)))
+    (square x)))
+
+;; Variable binding with types
+(defun [demo :void] ()
+  (let (([name :string] "Alice")
+        ([age :integer] 30)
+        (city "Tokyo"))
+    (format t "~A is ~A years old and lives in ~A~%" name age city)))

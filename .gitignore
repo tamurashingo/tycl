@@ -1,0 +1,33 @@
+# TyCL generated files from tests
+test/cli/*.lisp
+
+# Common Lisp compiled files
+*.fasl
+*.fas
+*.lib
+*.dx64fsl
+*.lx64fsl
+*.x86f
+*.dfsl
+
+# ASDF cache
+.asdf-cache/
+
+# Quicklisp
+quicklisp/
+
+# Editor temporary files
+*~
+*.swp
+*.swo
+.#*
+\#*\#
+
+# VS Code extension
+clients/vscode/node_modules/
+clients/vscode/out/
+clients/vscode/*.vsix
+
+# OS generated files
+.DS_Store
+Thumbs.db

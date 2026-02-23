@@ -1,0 +1,22 @@
+;;;; flet and labels test
+(in-package #:cl-user)
+
+(defun [test-flet :integer] ([x :integer])
+  (flet (([double :integer] ([n :integer])
+           (* n 2))
+         ([triple :integer] ([n :integer])
+           (* n 3)))
+    (+ (double x) (triple x))))
+
+(defun [test-labels :integer] ([n :integer])
+  (labels (([factorial :integer] ([x :integer])
+             (if (<= x 1)
+                 1
+                 (* x (factorial (- x 1))))))
+    (factorial n)))
+
+;; Test execution
+(format t "flet and labels test:~%")
+(format t "  test-flet(5): ~A~%" (test-flet 5))
+(format t "  test-labels(5): ~A~%" (test-labels 5))
+(format t "All tests passed!~%")

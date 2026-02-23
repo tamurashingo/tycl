@@ -1,0 +1,126 @@
+#!/bin/sh
+#|-*- mode:lisp -*-|#
+#|
+exec ros -Q -- $0 "$@"
+|#
+(progn ;;init forms
+  (ros:ensure-asdf)
+  #+quicklisp(ql:quickload '(:tycl) :silent t)
+  )
+
+(defpackage :ros.script.tycl.3980652581
+  (:use :cl))
+(in-package :ros.script.tycl.3980652581)
+
+(defun print-usage ()
+  "Print usage information"
+  (format t "~&TyCL - Typed Common Lisp Transpiler~%")
+  (format t "~&Usage: tycl <command> [options] <file>~%~%")
+  (format t "~&Commands:~%")
+  (format t "~&  transpile <input.tycl> [<output.lisp>]~%")
+  (format t "~&      Transpile a .tycl file to .lisp~%")
+  (format t "~&      If output is omitted, uses same name with .lisp extension~%~%")
+  (format t "~&  check <input.tycl>~%")
+  (format t "~&      Check type annotations in a .tycl file~%~%")
+  (format t "~&  lsp~%")
+  (format t "~&      Start LSP server (Language Server Protocol)~%")
+  (format t "~&      Communicates via stdin/stdout using JSON-RPC~%~%")
+  (format t "~&  help~%")
+  (format t "~&      Show this help message~%~%")
+  (format t "~&Examples:~%")
+  (format t "~&  tycl transpile src/example.tycl~%")
+  (format t "~&  tycl transpile src/example.tycl build/example.lisp~%")
+  (format t "~&  tycl check src/example.tycl~%")
+  (format t "~&  tycl lsp~%"))
+
+(defun cmd-transpile (argv)
+  "Handle transpile command"
+  (cond
+    ((null argv)
+     (format t "~&Error: No input file specified~%")
+     (print-usage)
+     (uiop:quit 1))
+    (t
+     (let* ((input-file (first argv))
+            (output-file (if (second argv)
+                             (second argv)
+                             (make-pathname :type "lisp" 
+                                           :defaults input-file))))
+       (handler-case
+           (progn
+             (format t "~&Transpiling ~A -> ~A...~%" input-file output-file)
+             (tycl:transpile-file input-file output-file)
+             (format t "~&Successfully transpiled to ~A~%" output-file)
+             (uiop:quit 0))
+         (error (e)
+           (format t "~&Error during transpilation: ~A~%" e)
+           (uiop:quit 1)))))))
+
+(defun cmd-check (argv)
+  "Handle check command"
+  (cond
+    ((null argv)
+     (format t "~&Error: No input file specified~%")
+     (print-usage)
+     (uiop:quit 1))
+    (t
+     (let ((input-file (first argv)))
+       (handler-case
+           (progn
+             (format t "~&Checking types in ~A...~%" input-file)
+             (if (tycl:check-file input-file)
+                 (progn
+                   (format t "~&Type check passed: ~A~%" input-file)
+                   (uiop:quit 0))
+                 (progn
+                   (format t "~&Type check failed: ~A~%" input-file)
+                   (uiop:quit 1))))
+         (error (e)
+           (format t "~&Error during type checking: ~A~%" e)
+           (uiop:quit 1)))))))
+
+(defun cmd-lsp ()
+  "Handle LSP server command"
+  (handler-case
+      (progn
+        (format *error-output* "~&Starting TyCL LSP server...~%")
+        (tycl.lsp:start-server)
+        (uiop:quit 0))
+    (error (e)
+      (format *error-output* "~&Error starting LSP server: ~A~%" e)
+      (uiop:quit 1))))
+
+(defun main (&rest argv)
+  "Main entry point for TyCL command-line tool"
+  (cond
+    ;; No arguments - show help
+    ((null argv)
+     (print-usage)
+     (uiop:quit 0))
+    
+    ;; Help command
+    ((or (string= (first argv) "help")
+         (string= (first argv) "-h")
+         (string= (first argv) "--help"))
+     (print-usage)
+     (uiop:quit 0))
+    
+    ;; Transpile command
+    ((string= (first argv) "transpile")
+     (cmd-transpile (rest argv)))
+    
+    ;; Check command
+    ((string= (first argv) "check")
+     (cmd-check (rest argv)))
+    
+    ;; LSP command
+    ((string= (first argv) "lsp")
+     (cmd-lsp))
+    
+    ;; Unknown command
+    (t
+     (format t "~&Error: Unknown command: ~A~%" (first argv))
+     (print-usage)
+     (uiop:quit 1))))
+
+;;; vim: set ft=lisp lisp:

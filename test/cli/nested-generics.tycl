@@ -1,0 +1,21 @@
+;;;; Nested generics test
+(in-package #:cl-user)
+
+(defun [matrix (:list (:list (:integer)))] ()
+  '((1 2 3)
+    (4 5 6)
+    (7 8 9)))
+
+(defun [complex-map (:hash-table (:string) (:list (:string)))] ()
+  (let ((h (make-hash-table :test 'equal)))
+    (setf (gethash "fruits" h) '("apple" "banana" "orange"))
+    (setf (gethash "colors" h) '("red" "green" "blue"))
+    h))
+
+;; Test execution
+(format t "Nested generics test:~%")
+(format t "  matrix: ~A~%" (matrix))
+(let ((h (complex-map)))
+  (format t "  complex-map fruits: ~A~%" (gethash "fruits" h))
+  (format t "  complex-map colors: ~A~%" (gethash "colors" h))
+  (format t "All tests passed!~%"))

@@ -1,0 +1,18 @@
+;;;; Basic types test
+(in-package #:cl-user)
+
+(defun [add-numbers :integer] ([a :integer] [b :integer])
+  (+ a b))
+
+(defun [concat-strings :string] ([s1 :string] [s2 :string])
+  (concatenate 'string s1 s2))
+
+(defun [get-pi :double-float] ()
+  3.14159d0)
+
+;; Test execution
+(format t "Basic types test:~%")
+(format t "  add-numbers: ~A~%" (add-numbers 10 20))
+(format t "  concat-strings: ~A~%" (concat-strings "Hello, " "World!"))
+(format t "  get-pi: ~A~%" (get-pi))
+(format t "All tests passed!~%")
