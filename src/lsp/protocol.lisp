@@ -17,14 +17,28 @@
 
 (defun read-json-rpc-message (stream)
   "Read a complete JSON-RPC message from stream"
-  (let* ((headers (read-headers stream))
-         (content-length (parse-content-length headers)))
-    (when content-length
-      (let ((buffer (make-string content-length)))
-        (read-sequence buffer stream)
+  (handler-case
+      (let* ((headers (read-headers stream))
+             (content-length (parse-content-length headers)))
         (when *debug-mode*
-          (format *error-output* "~%<<< ~A~%" buffer))
-        (cl-json:decode-json-from-string buffer)))))
+          (format *error-output* "~%Headers received: ~A~%" headers))
+        (let ((content-length (parse-content-length headers)))
+          (when *debug-mode*
+            (format *error-output* "~%Content-Length: ~A~%" content-length))
+          (when content-length
+            (let ((buffer (make-string content-length)))
+              (read-sequence buffer stream)
+              (when *debug-mode*
+                (format *error-output* "~%<<< ~A~%" buffer))
+              (cl-json:decode-json-from-string buffer)))))
+    (end-of-file ()
+      (when *debug-mode*
+        (format *error-output* "~%EOF reached~%"))
+      nil)
+    (error (e)
+      (when *debug-mode*
+        (format *error-output* "~%Error reading message: ~A~%" e))
+      nil)))
 
 (defun write-json-rpc-message (message stream)
   "Write a JSON-RPC message to stream"
