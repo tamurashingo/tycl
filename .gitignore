@@ -1,5 +1,6 @@
 # TyCL generated files from tests
 test/cli/*.lisp
+test/cli/*.tycl-types
 
 # Common Lisp compiled files
 *.fasl
@@ -31,3 +32,5 @@ clients/vscode/*.vsix
 # OS generated files
 .DS_Store
 Thumbs.db
+
+system-index.txt
