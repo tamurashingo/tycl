@@ -31,6 +31,8 @@
          (handle-hover params id stream))
         ((string= method "textDocument/completion")
          (handle-completion params id stream))
+        ((string= method "completionItem/resolve")
+         (handle-completion-resolve params id stream))
         ((string= method "textDocument/definition")
          (handle-definition params id stream))
         ((string= method "textDocument/documentSymbol")

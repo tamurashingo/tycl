@@ -142,6 +142,12 @@
                         #())
                     stream))))
 
+(defun handle-completion-resolve (params id stream)
+  "Handle completionItem/resolve request"
+  ;; For now, just return the item as-is since we don't have additional
+  ;; information to resolve. This prevents the "Method not found" error.
+  (send-response id params stream))
+
 (defun handle-definition (params id stream)
   "Handle textDocument/definition request"
   (declare (ignore params))

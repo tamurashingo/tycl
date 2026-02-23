@@ -86,12 +86,86 @@
     (:method (format-function-signature info))
     (otherwise (format nil "Symbol: ~A" (type-info-name info)))))
 
+(defun extract-package-name (text)
+  "Extract package name from file content"
+  (let ((lines (split-string text #\Newline)))
+    (loop for line in lines
+          do (let ((trimmed (string-trim '(#\Space #\Tab) line)))
+               (when (and (> (length trimmed) 0)
+                          (char= (char trimmed 0) #\()))
+                 (let ((forms (ignore-errors (read-from-string trimmed))))
+                   (when (and (consp forms)
+                              (eq (car forms) 'in-package))
+                     (let ((package-spec (second forms)))
+                       (return (string-upcase
+                                 (if (keywordp package-spec)
+                                     (symbol-name package-spec)
+                                     (if (and (consp package-spec)
+                                              (eq (car package-spec) 'quote))
+                                         (symbol-name (second package-spec))
+                                         (format nil "~A" package-spec))))))))))))
+
+(defun get-file-specific-types-file (uri)
+  "Get the .tycl-types file corresponding to the given .tycl file URI"
+  (let* ((file-path (ppcre:regex-replace "^file://" uri ""))
+         (parsed-path (uiop:parse-native-namestring file-path)))
+    (when (string= (pathname-type parsed-path) "tycl")
+      (make-pathname :type "tycl-types" :defaults parsed-path))))
+
+(defun query-type-info-with-file-priority (symbol-name package-name uri)
+  "Query type information with preference for file-specific types"
+  (when *debug-mode*
+    (format *error-output* "~%[Hover] Querying symbol: ~A, package: ~A~%"
+            symbol-name package-name))
+
+  ;; First, try the specific package
+  (let ((info (when package-name (query-type-info symbol-name package-name))))
+    (when info
+      (when *debug-mode*
+        (format *error-output* "~%[Hover] Found in package ~A~%" package-name))
+      (return-from query-type-info-with-file-priority info)))
+
+  ;; If not found and we have a URI, check if there's a file-specific types file
+  (when uri
+    (let ((types-file (get-file-specific-types-file uri)))
+      (when (and types-file (probe-file types-file))
+        (when *debug-mode*
+          (format *error-output* "~%[Hover] Checking file-specific types: ~A~%" types-file))
+        ;; Try to find in the file-specific package first
+        (let ((info (query-type-info symbol-name package-name)))
+          (when info
+            (when *debug-mode*
+              (format *error-output* "~%[Hover] Found in file-specific package~%"))
+            (return-from query-type-info-with-file-priority info))))))
+
+  ;; Fallback to global search
+  (when *debug-mode*
+    (format *error-output* "~%[Hover] Falling back to global search~%"))
+  (let ((info (query-type-info symbol-name)))
+    (when *debug-mode*
+      (if info
+          (format *error-output* "~%[Hover] Found globally: ~A~%"
+                  (type-info-name info))
+          (format *error-output* "~%[Hover] Not found anywhere~%")))
+    info))
+
 (defun get-hover-info (uri line character)
   "Get hover information for position in document"
   (let* ((text (gethash uri *open-documents*))
          (symbol-name (and text (extract-symbol-at-position text line character))))
+    (when *debug-mode*
+      (format *error-output* "~%[Hover] Request: URI=~A, line=~A, char=~A~%"
+              uri line character)
+      (format *error-output* "~%[Hover] Extracted symbol: ~A~%" symbol-name))
+
     (when symbol-name
-      (let ((info (query-type-info symbol-name)))
+      (let* ((package-name (and text (extract-package-name text)))
+             (info (query-type-info-with-file-priority symbol-name package-name uri)))
+
+        (when *debug-mode*
+          (format *error-output* "~%[Hover] Package: ~A~%" package-name)
+          (format *error-output* "~%[Hover] Info found: ~A~%" (not (null info))))
+
         (when info
           `((:contents . ((:kind . "markdown")
                          (:value . ,(format-hover-content info))))
