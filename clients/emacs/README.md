@@ -48,7 +48,7 @@ If you're running TyCL from source (not installed system-wide):
 (setq tycl-lsp-server-root-path "/path/to/tycl")
 ```
 
-This will use `/path/to/tycl/roswell/tycl.ros` as the LSP server.
+This will use `/path/to/tycl/roswell/tycl.ros` as the LSP server for development.
 
 #### With use-package
 
@@ -119,14 +119,14 @@ M-x lsp-describe-session
 
 ### LSP Server Not Starting
 
-1. Check if `ros` is in your PATH:
+1. Check if `tycl` is in your PATH:
    ```bash
-   which ros
+   which tycl
    ```
 
 2. Test the LSP server manually:
    ```bash
-   ros run roswell/tycl.ros lsp
+   tycl lsp
    ```
 
 3. Check Emacs `*lsp-log*` buffer for errors:
@@ -139,6 +139,8 @@ M-x lsp-describe-session
 If the default command doesn't work, customize it:
 
 ```elisp
+(setq tycl-lsp-server-command '("tycl" "lsp"))
+;; Or for development with local source:
 (setq tycl-lsp-server-command '("ros" "run" "/full/path/to/tycl.ros" "lsp"))
 ```
 

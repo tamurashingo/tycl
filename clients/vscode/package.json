@@ -70,14 +70,12 @@
         },
         "tycl.lsp.executable": {
           "type": "string",
-          "default": "ros",
-          "description": "Roswell executable name or path"
+          "default": "tycl",
+          "description": "TyCL executable name or path (installed via 'ros install')"
         },
         "tycl.lsp.args": {
           "type": "array",
           "default": [
-            "run",
-            "roswell/tycl.ros",
             "lsp"
           ],
           "description": "Arguments for TyCL LSP server"

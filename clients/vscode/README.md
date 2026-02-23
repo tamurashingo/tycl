@@ -49,8 +49,8 @@ Open VS Code settings (File > Preferences > Settings) and search for "TyCL":
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `tycl.lsp.enabled` | `true` | Enable/disable TyCL Language Server |
-| `tycl.lsp.executable` | `"ros"` | Roswell executable name or path |
-| `tycl.lsp.serverPath` | `""` | Path to TyCL installation directory |
+| `tycl.lsp.executable` | `"tycl"` | TyCL executable (installed via `ros install`) |
+| `tycl.lsp.serverPath` | `""` | Path to TyCL source directory (for development) |
 | `tycl.lsp.trace.server` | `"off"` | LSP communication tracing |
 
 ### Example: Using Local TyCL Installation
@@ -65,11 +65,11 @@ If you're running TyCL from source:
 
 This will use `/home/user/projects/tycl/roswell/tycl.ros` as the LSP server.
 
-### Example: Custom Roswell Path
+### Example: Custom TyCL Installation Path
 
 ```json
 {
-  "tycl.lsp.executable": "/usr/local/bin/ros"
+  "tycl.lsp.executable": "/custom/path/to/tycl"
 }
 ```
 
@@ -121,16 +121,16 @@ Errors appear in real-time:
 
 ### LSP Server Not Starting
 
-1. **Check if Roswell is installed**:
+1. **Check if TyCL is installed**:
    ```bash
-   which ros
+   which tycl
    # or
-   ros version
+   tycl help
    ```
 
 2. **Test LSP server manually**:
    ```bash
-   ros run roswell/tycl.ros lsp
+   tycl lsp
    ```
    Should not output errors and wait for input.
 

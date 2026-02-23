@@ -19,10 +19,10 @@ export function activate(context: ExtensionContext) {
   }
 
   const serverPath = config.get<string>('lsp.serverPath', '');
-  const executable = config.get<string>('lsp.executable', 'ros');
-  let args = config.get<string[]>('lsp.args', ['run', 'roswell/tycl.ros', 'lsp']);
+  let executable = config.get<string>('lsp.executable', 'tycl');
+  let args = config.get<string[]>('lsp.args', ['lsp']);
 
-  // If serverPath is specified, adjust the args to use absolute path
+  // If serverPath is specified, adjust the command to use absolute path
   if (serverPath) {
     const tyClScript = path.join(serverPath, 'roswell', 'tycl.ros');
     if (!fs.existsSync(tyClScript)) {
@@ -31,6 +31,8 @@ export function activate(context: ExtensionContext) {
       );
       return;
     }
+    // Use ros to run the local script
+    executable = 'ros';
     args = ['run', tyClScript, 'lsp'];
   }
 
