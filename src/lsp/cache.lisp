@@ -87,7 +87,9 @@
                       (when *debug-mode*
                         (format *error-output* "~%[Cache]     Symbol: ~A (~A) type-spec: ~A~%" 
                                 symbol-name kind (type-info-type-spec info)))
-                      (setf (gethash symbol-name package-table) info)))))))))))))(defun load-workspace-types (root-path)
+                      (setf (gethash symbol-name package-table) info))))))))))))
+
+(defun load-workspace-types (root-path)
   "Load all type information from workspace"
   (when *debug-mode*
     (format *error-output* "~%[Cache] Loading workspace types from: ~A~%" root-path))
