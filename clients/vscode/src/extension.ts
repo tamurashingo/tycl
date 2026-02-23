@@ -5,7 +5,8 @@ import {
   LanguageClient,
   LanguageClientOptions,
   ServerOptions,
-  Executable
+  Executable,
+  Trace
 } from 'vscode-languageclient/node';
 
 let client: LanguageClient;
@@ -59,8 +60,12 @@ export function activate(context: ExtensionContext) {
   );
 
   const trace = config.get<string>('lsp.trace.server', 'off');
-  if (trace !== 'off') {
-    client.trace = trace === 'verbose' ? 2 : 1;
+  if (trace === 'verbose') {
+    client.setTrace(Trace.Verbose);
+  } else if (trace === 'messages') {
+    client.setTrace(Trace.Messages);
+  } else {
+    client.setTrace(Trace.Off);
   }
 
   client.start();
