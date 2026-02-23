@@ -34,35 +34,71 @@
 (defun load-type-info-file (filepath)
   "Load type information from a .tycl-types file"
   (when (probe-file filepath)
+    (when *debug-mode*
+      (format *error-output* "~%[Cache]   Reading file: ~A~%" filepath))
     (with-open-file (stream filepath :direction :input)
       (let ((data (read stream nil nil)))
+        (when *debug-mode*
+          (format *error-output* "~%[Cache]   Data format: ~A~%" (if data (car data) "NIL")))
         (when data
-          (dolist (entry data)
-            (let* ((package-name (getf entry :package))
-                   (package-table (or (gethash package-name *type-info-cache*)
-                                     (setf (gethash package-name *type-info-cache*)
-                                           (make-hash-table :test 'equal)))))
-              (dolist (symbol-info (getf entry :symbols))
-                (let* ((symbol-name (getf symbol-info :name))
-                       (info (make-type-info
-                              :kind (getf symbol-info :kind)
-                              :name symbol-name
-                              :type-spec (getf symbol-info :type)
-                              :location (cons (namestring filepath)
-                                            (getf symbol-info :line)))))
-                  (setf (gethash symbol-name package-table) info))))))))))
-
+          ;; Check if it's the new format (:tycl-type-database ...)
+          (let ((entries (if (eq (car data) :tycl-type-database)
+                            ;; New format: extract :entries
+                            (getf (cdr data) :entries)
+                            ;; Old format: assume data is a list of entries
+                            data))
+                (package-name (if (eq (car data) :tycl-type-database)
+                                 (getf (cdr data) :package)
+                                 "COMMON-LISP-USER")))
+            (when *debug-mode*
+              (format *error-output* "~%[Cache]   Package: ~A~%" package-name)
+              (format *error-output* "~%[Cache]   Entries count: ~D~%" (length entries)))
+            (let ((package-table (or (gethash package-name *type-info-cache*)
+                                    (setf (gethash package-name *type-info-cache*)
+                                          (make-hash-table :test 'equal)))))
+              (dolist (entry entries)
+                (let* ((kind (first entry))
+                       (props (rest entry))
+                       (symbol-name (getf props :symbol)))
+                  (when symbol-name
+                    (let ((info (make-type-info
+                                 :kind kind
+                                 :name symbol-name
+                                 :type-spec (case kind
+                                             (:function (getf props :return))
+                                             (:value (getf props :type))
+                                             (:method (getf props :return))
+                                             (:class :class))
+                                 :location (cons (namestring filepath) 0))))
+                      (when *debug-mode*
+                        (format *error-output* "~%[Cache]     Symbol: ~A (~A)~%" 
+                                symbol-name kind))
+                      (setf (gethash symbol-name package-table) info))))))))))))
 (defun load-workspace-types (root-path)
   "Load all type information from workspace"
+  (when *debug-mode*
+    (format *error-output* "~%[Cache] Loading workspace types from: ~A~%" root-path))
   (setf *workspace-root* root-path)
   (clear-cache)
   (let ((files (find-tycl-types-files root-path)))
+    (when *debug-mode*
+      (format *error-output* "~%[Cache] Found ~D .tycl-types files~%" (length files))
+      (dolist (file files)
+        (format *error-output* "~%[Cache]   - ~A~%" file)))
     (dolist (file files)
       (handler-case
-          (load-type-info-file file)
+          (progn
+            (when *debug-mode*
+              (format *error-output* "~%[Cache] Loading ~A...~%" file))
+            (load-type-info-file file)
+            (when *debug-mode*
+              (format *error-output* "~%[Cache] Successfully loaded ~A~%" file)))
         (error (e)
           (when *debug-mode*
-            (format *error-output* "~%Error loading ~A: ~A~%" file e)))))))
+            (format *error-output* "~%[Cache] Error loading ~A: ~A~%" file e))))))
+  (when *debug-mode*
+    (format *error-output* "~%[Cache] Total symbols loaded: ~D~%" 
+            (length (get-all-symbols)))))
 
 (defun query-type-info (symbol-name &optional package-name)
   "Query type information for a symbol"
