@@ -50,7 +50,9 @@ exec ros -Q -- $0 "$@"
        (handler-case
            (progn
              (format t "~&Transpiling ~A -> ~A...~%" input-file output-file)
-             (tycl:transpile-file input-file output-file)
+             (tycl:transpile-file input-file output-file 
+                                  :extract-types t 
+                                  :save-types t)
              (format t "~&Successfully transpiled to ~A~%" output-file)
              (uiop:quit 0))
          (error (e)
