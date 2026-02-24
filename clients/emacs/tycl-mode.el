@@ -27,7 +27,7 @@
   :group 'languages
   :prefix "tycl-")
 
-(defcustom tycl-lsp-server-command '("ros" "run" "roswell/tycl.ros" "lsp")
+(defcustom tycl-lsp-server-command '("ros" "roswell/tycl.ros" "lsp")
   "Command to start TyCL LSP server."
   :type '(repeat string)
   :group 'tycl)
@@ -70,7 +70,7 @@ the [symbol :type] syntax.
   (setq-local font-lock-defaults '(tycl-font-lock-keywords))
   (setq-local comment-start ";")
   (setq-local comment-end "")
-  
+
   ;; LSP setup
   (when (featurep 'lsp-mode)
     (tycl-lsp-setup)))
@@ -79,7 +79,7 @@ the [symbol :type] syntax.
   "Set up LSP for TyCL mode."
   (when (fboundp 'lsp-register-client)
     (let* ((server-cmd (if tycl-lsp-server-root-path
-                           (list "ros" "run"
+                           (list "ros"
                                  (expand-file-name "roswell/tycl.ros"
                                                    tycl-lsp-server-root-path)
                                  "lsp")
