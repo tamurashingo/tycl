@@ -55,7 +55,10 @@
                  (:file "hooks-test")
                  (:file "tycl-hooks-test")
                  (:file "sample-hook-test")
-                 (:file "lsp-test"))))
+                 (:file "lsp-test")))
+               (:module "test/lsp"
+                :components
+                ((:file "did-change-test"))))
   :perform (test-op (op c)
                     (declare (ignore op c))
                     (uiop:symbol-call :rove :run :tycl/test)))

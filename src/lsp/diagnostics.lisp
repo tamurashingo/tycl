@@ -4,7 +4,8 @@
 
 (defun check-syntax (text)
   "Check syntax of TyCL code and return diagnostics"
-  (let ((diagnostics '()))
+  (let ((diagnostics '())
+        (*readtable* tycl/reader:*tycl-readtable*))
     (handler-case
         (with-input-from-string (stream text)
           (loop for form = (read stream nil :eof)
@@ -36,6 +37,7 @@
   (let ((name-part (second form))
         (params-part (third form)))
     (unless (or (symbolp name-part)
+               (tycl/annotation:type-annotation-p name-part)
                (and (consp name-part)
                     (symbolp (first name-part))))
       (error "Invalid function name"))
@@ -51,8 +53,10 @@
       (error "Invalid let bindings"))
     (dolist (binding bindings)
       (unless (or (symbolp binding)
+                 (tycl/annotation:type-annotation-p binding)
                  (and (consp binding)
                       (or (symbolp (car binding))
+                          (tycl/annotation:type-annotation-p (car binding))
                           (and (consp (car binding))
                                (symbolp (caar binding))))))
         (error "Invalid let binding")))))
@@ -64,7 +68,8 @@
 
 (defun check-types (text uri)
   "Check type consistency and return diagnostics"
-  (let ((diagnostics '()))
+  (let ((diagnostics '())
+        (*readtable* tycl/reader:*tycl-readtable*))
     (handler-case
         (with-input-from-string (stream text)
           (loop for form = (read stream nil :eof)

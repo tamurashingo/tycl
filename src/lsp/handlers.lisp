@@ -66,19 +66,56 @@
     (when *debug-mode*
       (format *error-output* "~%Opened document: ~A~%" uri))))
 
+(defun position-to-offset (text line character)
+  "Convert LSP line/character position to a string offset.
+   LINE and CHARACTER are 0-based."
+  (let ((offset 0)
+        (current-line 0))
+    (loop for i from 0 below (length text)
+          do (when (= current-line line)
+               (return-from position-to-offset (+ offset character)))
+             (if (char= (char text i) #\Newline)
+                 (incf current-line)
+                 nil)
+             (incf offset))
+    ;; If we reach here, the position is at or past the last line
+    (+ offset character)))
+
+(defun apply-content-change (text change)
+  "Apply a single content change to TEXT.
+   If CHANGE has :range, apply incrementally. Otherwise treat as full replacement."
+  (let ((range (cdr (assoc :range change)))
+        (new-text (cdr (assoc :text change))))
+    (if range
+        ;; Incremental change: apply range-based replacement
+        (let* ((start (cdr (assoc :start range)))
+               (end (cdr (assoc :end range)))
+               (start-line (cdr (assoc :line start)))
+               (start-char (cdr (assoc :character start)))
+               (end-line (cdr (assoc :line end)))
+               (end-char (cdr (assoc :character end)))
+               (start-offset (position-to-offset text start-line start-char))
+               (end-offset (position-to-offset text end-line end-char)))
+          (concatenate 'string
+                       (subseq text 0 start-offset)
+                       new-text
+                       (subseq text end-offset)))
+        ;; Full replacement
+        new-text)))
+
 (defun handle-did-change (params stream)
   "Handle textDocument/didChange notification"
   (let* ((text-document (cdr (assoc :text-document params)))
          (uri (cdr (assoc :uri text-document)))
          (content-changes (cdr (assoc :content-changes params))))
-    ;; For full document sync (change = 1) or incremental (change = 2)
-    ;; We use incremental but for simplicity, take the last full text
     (when content-changes
-      (let ((new-text (cdr (assoc :text (car (last content-changes))))))
-        (when new-text
-          (setf (gethash uri *open-documents*) new-text)
-          ;; Send diagnostics on change
-          (publish-diagnostics uri new-text stream))))
+      (let ((text (gethash uri *open-documents*)))
+        ;; Apply each content change sequentially
+        (dolist (change content-changes)
+          (setf text (apply-content-change text change)))
+        (setf (gethash uri *open-documents*) text)
+        ;; Send diagnostics on change
+        (publish-diagnostics uri text stream)))
     (when *debug-mode*
       (format *error-output* "~%Changed document: ~A~%" uri))))
 

@@ -43,8 +43,7 @@
         (when (or (null prefix)
                  (string= prefix "")
                  (and (>= (length type-str) (length prefix))
-                      (string= prefix (subseq type-str 0 (length prefix))
-                              :test #'char-equal)))
+                      (string-equal prefix (subseq type-str 0 (length prefix)))))
           (push (make-completion-item type-str 25 type-str) items))))
     items))
 
@@ -58,8 +57,7 @@
           (when (or (null prefix)
                    (string= prefix "")
                    (and (>= (length name) (length prefix))
-                        (string= prefix (subseq name 0 (length prefix))
-                                :test #'char-equal)))
+                        (string-equal prefix (subseq name 0 (length prefix)))))
             (push (make-completion-item-with-detail
                    name 3
                    (format-function-detail symbol))
@@ -76,8 +74,7 @@
           (when (or (null prefix)
                    (string= prefix "")
                    (and (>= (length name) (length prefix))
-                        (string= prefix (subseq name 0 (length prefix))
-                                :test #'char-equal)))
+                        (string-equal prefix (subseq name 0 (length prefix)))))
             (push (make-completion-item-with-detail
                    name 6
                    (format-type-spec (type-info-type-spec symbol)))
