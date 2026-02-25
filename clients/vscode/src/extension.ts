@@ -44,8 +44,8 @@ export function activate(context: ExtensionContext) {
     }
     // Use ros to run the local script
     executable = 'ros';
-    args = [tyClScript, 'lsp'];
-    outputChannel.appendLine(`[TyCL] Using development mode: ${tyClScript} lsp`);
+    args = [tyClScript, ...args];
+    outputChannel.appendLine(`[TyCL] Using development mode: ${args}`);
   }
 
   const serverExecutable: Executable = {
