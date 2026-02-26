@@ -1,0 +1,35 @@
+name: Test
+
+on:
+  push:
+    branches: [main, feature/*]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        lisp: [sbcl-bin, ccl-bin]
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Roswell
+        env:
+          ROSWELL_INSTALL_DIR: $HOME/.roswell
+        run: |
+          curl -L https://raw.githubusercontent.com/roswell/roswell/master/scripts/install-for-ci.sh | sh
+
+      - name: Install ${{ matrix.lisp }}
+        run: |
+          ros install ${{ matrix.lisp }}
+          ros use ${{ matrix.lisp }}
+
+      - name: Install rove
+        run: ros install rove
+
+      - name: Run tests
+        run: make test
