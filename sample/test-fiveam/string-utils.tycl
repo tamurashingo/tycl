@@ -1,0 +1,27 @@
+;;; -*- mode: lisp -*-
+(in-package #:sample-project/test-fiveam)
+
+(def-suite string-utils-suite
+  :in sample-project-suite
+  :description "String utilities tests")
+
+(in-suite string-utils-suite)
+
+(test join-strings-test
+  (is (string= (sample-project/string-utils:join-strings '("a" "b" "c") ", ")
+               "a, b, c"))
+  (is (string= (sample-project/string-utils:join-strings '("hello") "-")
+               "hello")))
+
+(test repeat-string-test
+  (is (string= (sample-project/string-utils:repeat-string "ab" 3) "ababab"))
+  (is (string= (sample-project/string-utils:repeat-string "x" 1) "x"))
+  (is (string= (sample-project/string-utils:repeat-string "a" 0) "")))
+
+(test truncate-string-test
+  (is (string= (sample-project/string-utils:truncate-string "Hello, World!" 5)
+               "Hello..."))
+  (is (string= (sample-project/string-utils:truncate-string "Hi" 10)
+               "Hi")))
+
+;;; vim: set filetype=lisp :

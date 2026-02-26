@@ -16,6 +16,7 @@ test/cli/*.tycl-types
 
 # Quicklisp
 quicklisp/
+system-index.txt
 
 # Editor temporary files
 *~
@@ -33,4 +34,6 @@ clients/vscode/*.vsix
 .DS_Store
 Thumbs.db
 
-system-index.txt
+
+# Sample project build output
+sample/build/

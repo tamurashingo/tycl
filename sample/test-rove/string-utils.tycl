@@ -1,0 +1,22 @@
+(in-package #:cl-user)
+(defpackage #:sample-project/test/string-utils
+  (:use #:cl
+        #:rove
+        #:sample-project/math))
+(in-package #:sample-project/test/string-utils)
+
+(deftest add-test
+  (ok (= (add 2 3) 5)))
+
+(deftest multiply-test
+  (ok (= (multiply 4 5) 20)))
+
+(deftest factorial-test
+  (ok (= (factorial 6) 720)))
+
+(deftest safe-divide-test
+  (ok (= (safe-divide 4 2) 2))
+
+  (ok (null (safe-divide 5 0)))) 
+
+

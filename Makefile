@@ -1,20 +1,21 @@
-.PHONY: test test.unit test.cli clean clean.cli help install
+.PHONY: test test.unit test.cli test.sample clean clean.cli help install
 
 # Default target
 help:
 	@echo "TyCL - Typed Common Lisp"
 	@echo ""
 	@echo "Available targets:"
-	@echo "  make test        - Run all tests (unit + cli)"
+	@echo "  make test        - Run all tests (unit + cli + sample)"
 	@echo "  make test.unit   - Run unit tests via ASDF test-op"
 	@echo "  make test.cli    - Run CLI integration tests"
+	@echo "  make test.sample - Run sample project (run + test)"
 	@echo "  make install     - Install tycl command (requires roswell)"
 	@echo "  make clean       - Clean compiled files"
 	@echo "  make clean.cli   - Clean generated lisp files from CLI tests"
 	@echo "  make help        - Show this help message"
 
-# Run all tests (unit + cli)
-test: test.unit test.cli
+# Run all tests (unit + cli + sample)
+test: test.unit test.cli test.sample
 
 # Run unit tests using ASDF test-op (calls the :in-order-to test defined in tycl.asd)
 test.unit:
@@ -79,6 +80,12 @@ test.cli: clean.cli
 	echo "✓ Check command passed"
 	@echo ""
 	@echo "All CLI tests passed!"
+
+# Run sample project (make run + make test)
+test.sample:
+	@echo "Running sample project..."
+	@$(MAKE) -C sample
+	@$(MAKE) -C sample test
 
 # Clean generated lisp files from CLI tests
 clean.cli:

@@ -1,0 +1,26 @@
+;;; -*- mode: lisp -*-
+;;;; Sample Project - String Utilities (TyCL)
+
+(in-package #:cl-user)
+(defpackage #:sample-project/string-utils
+  (:use #:cl)
+  (:export #:join-strings
+           #:repeat-string
+           #:truncate-string))
+(in-package #:sample-project/string-utils)
+
+(defun [join-strings :string] ([strings :list] [separator :string])
+  "Join a list of strings with a separator"
+  (format nil (concatenate 'string "~{~A~^" separator "~}") strings))
+
+(defun [repeat-string :string] ([s :string] [n :integer])
+  "Repeat a string n times"
+  (apply #'concatenate 'string (make-list n :initial-element s)))
+
+(defun [truncate-string :string] ([s :string] [max-length :integer])
+  "Truncate a string to max-length, adding ... if truncated"
+  (if (<= (length s) max-length)
+      s
+      (concatenate 'string (subseq s 0 max-length) "...")))
+
+;;; vim: set filetype=lisp :

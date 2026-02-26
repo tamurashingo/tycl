@@ -1,0 +1,33 @@
+;;; -*- mode: lisp -*-
+;;;; Sample Project - Math Functions (TyCL)
+
+(in-package #:cl-user)
+(defpackage #:sample-project/math
+  (:use #:cl)
+  (:export #:add
+           #:multiply
+           #:factorial
+           #:safe-divide))
+(in-package #:sample-project/math)
+
+(defun [add :integer] ([x :integer] [y :integer])
+  "Add two integers"
+  (+ x y))
+
+(defun [multiply :integer] ([x :integer] [y :integer])
+  "Multiply two integers"
+  (* x y))
+
+(defun [factorial :integer] ([n :integer])
+  "Calculate factorial recursively"
+  (if (<= n 1)
+      1
+      (* n (factorial (1- n)))))
+
+(defun [safe-divide (:integer :nil)] ([x :integer] [y :integer])
+  "Divide x by y, returning nil on division by zero"
+  (if (zerop y)
+      nil
+      (floor x y)))
+
+;;; vim: set filetype=lisp :
