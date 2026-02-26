@@ -21,6 +21,7 @@ jobs:
         env:
           ROSWELL_INSTALL_DIR: $HOME/.roswell
         run: |
+          export PATH="$HOME/.roswell/bin:$PATH"
           curl -L https://raw.githubusercontent.com/roswell/roswell/master/scripts/install-for-ci.sh | sh
           echo "$HOME/.roswell/bin" >> $GITHUB_PATH
 
