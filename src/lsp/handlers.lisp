@@ -14,7 +14,14 @@
                        (uiop:getcwd))))
     (when *debug-mode*
       (format *error-output* "~%Initializing workspace: ~A~%" root-path))
-    
+
+    ;; Load and cache .asd files from workspace root
+    (handler-case
+        (load-and-cache-asd-files root-path)
+      (error (e)
+        (when *debug-mode*
+          (format *error-output* "~%Error loading .asd files: ~A~%" e))))
+
     ;; Load type information from workspace
     (load-workspace-types root-path)
     
@@ -127,17 +134,19 @@
          (text (gethash uri *open-documents*)))
     (when *debug-mode*
       (format *error-output* "~%Saved document: ~A~%" uri))
-    
-    ;; If it's a .tycl file, reload its type information
+
+    ;; If it's a .tycl file, transpile and reload type information
     (when (string= (pathname-type path) "tycl")
-      (let ((types-file (make-pathname :type "tycl-types" :defaults path)))
-        (when (probe-file types-file)
+      ;; Transpile the file to generate .lisp and .tycl-types
+      (let ((types-file (transpile-tycl-file path)))
+        ;; Load the generated (or existing) .tycl-types
+        (when types-file
           (handler-case
               (load-type-info-file types-file)
             (error (e)
               (when *debug-mode*
                 (format *error-output* "~%Error reloading types: ~A~%" e)))))))
-    
+
     ;; Send diagnostics
     (when text
       (publish-diagnostics uri text stream))))

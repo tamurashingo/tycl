@@ -37,7 +37,18 @@
    #:get-hover-info
    
    ;; Completion
-   #:get-completion-items))
+   #:get-completion-items
+
+   ;; ASD parser
+   #:find-asd-files
+   #:load-asd-file
+   #:find-system-for-file
+   #:resolve-output-path
+   #:load-and-cache-asd-files
+   #:transpile-tycl-file
+   #:transpile-all-in-asd
+   #:*cached-asd-files*
+   #:*cached-asd-systems*))
 
 (in-package :tycl.lsp)
 

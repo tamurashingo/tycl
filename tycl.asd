@@ -38,6 +38,7 @@
                  (:file "diagnostics")
                  (:file "hover")
                  (:file "completion")
+                 (:file "asd-parser")
                  (:file "handlers")
                  (:file "server"))))
   
@@ -60,7 +61,8 @@
                  (:file "asdf-test")))
                (:module "test/lsp"
                 :components
-                ((:file "did-change-test"))))
+                ((:file "did-change-test")
+                 (:file "asd-parser-test"))))
   :perform (test-op (op c)
                     (declare (ignore op c))
                     (uiop:symbol-call :rove :run :tycl/test)))

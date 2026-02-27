@@ -72,6 +72,7 @@
            #:class-slots
            #:class-superclasses
            #:type-database
+           #:*valid-types*
            #:*type-database*
            #:register-type-info
            #:lookup-type-info

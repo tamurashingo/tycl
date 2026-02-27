@@ -21,6 +21,9 @@ exec ros -Q -- $0 "$@"
   (format t "~&  transpile <input.tycl> [<output.lisp>]~%")
   (format t "~&      Transpile a .tycl file to .lisp~%")
   (format t "~&      If output is omitted, uses same name with .lisp extension~%~%")
+  (format t "~&  transpile-all <file.asd>~%")
+  (format t "~&      Transpile all .tycl files defined in a .asd file~%")
+  (format t "~&      Processes all tycl-file components in all tycl-systems~%~%")
   (format t "~&  check <input.tycl>~%")
   (format t "~&      Check type annotations in a .tycl file~%~%")
   (format t "~&  lsp [--swank [port]]~%")
@@ -33,6 +36,7 @@ exec ros -Q -- $0 "$@"
   (format t "~&Examples:~%")
   (format t "~&  tycl transpile src/example.tycl~%")
   (format t "~&  tycl transpile src/example.tycl build/example.lisp~%")
+  (format t "~&  tycl transpile-all sample-project.asd~%")
   (format t "~&  tycl check src/example.tycl~%")
   (format t "~&  tycl lsp~%")
   (format t "~&  tycl lsp --swank~%")
@@ -61,6 +65,25 @@ exec ros -Q -- $0 "$@"
              (uiop:quit 0))
          (error (e)
            (format t "~&Error during transpilation: ~A~%" e)
+           (uiop:quit 1)))))))
+
+(defun cmd-transpile-all (argv)
+  "Handle transpile-all command"
+  (cond
+    ((null argv)
+     (format t "~&Error: No .asd file specified~%")
+     (print-usage)
+     (uiop:quit 1))
+    (t
+     (let ((asd-file (first argv)))
+       (handler-case
+           (progn
+             (format t "~&Transpiling all tycl files in ~A...~%" asd-file)
+             (let ((count (tycl.lsp:transpile-all-in-asd asd-file)))
+               (format t "~&Successfully transpiled ~D file(s)~%" count)
+               (uiop:quit 0)))
+         (error (e)
+           (format t "~&Error during transpile-all: ~A~%" e)
            (uiop:quit 1)))))))
 
 (defun cmd-check (argv)
@@ -147,7 +170,11 @@ exec ros -Q -- $0 "$@"
     ;; Transpile command
     ((string= (first argv) "transpile")
      (cmd-transpile (rest argv)))
-    
+
+    ;; Transpile-all command
+    ((string= (first argv) "transpile-all")
+     (cmd-transpile-all (rest argv)))
+
     ;; Check command
     ((string= (first argv) "check")
      (cmd-check (rest argv)))
