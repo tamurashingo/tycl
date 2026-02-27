@@ -121,22 +121,26 @@
 ;;; ============================================================
 
 (defmethod asdf:component-depends-on ((o asdf:compile-op) (c asdf:cl-source-file))
-  (if (typep (asdf:component-system c) 'tycl-system)
+  (if (and (typep (asdf:component-system c) 'tycl-system)
+           (not (typep c 'tycl-file)))
       `((copy-source-op ,c) ,@(call-next-method))
       (call-next-method)))
 
 (defmethod asdf:component-depends-on ((o asdf:load-source-op) (c asdf:cl-source-file))
-  (if (typep (asdf:component-system c) 'tycl-system)
+  (if (and (typep (asdf:component-system c) 'tycl-system)
+           (not (typep c 'tycl-file)))
       `((copy-source-op ,c) ,@(call-next-method))
       (call-next-method)))
 
 (defmethod asdf:input-files ((o asdf:compile-op) (c asdf:cl-source-file))
-  (if (typep (asdf:component-system c) 'tycl-system)
+  (if (and (typep (asdf:component-system c) 'tycl-system)
+           (not (typep c 'tycl-file)))
       (list (first (asdf:output-files (asdf:make-operation 'copy-source-op) c)))
       (call-next-method)))
 
 (defmethod asdf:input-files ((o asdf:load-source-op) (c asdf:cl-source-file))
-  (if (typep (asdf:component-system c) 'tycl-system)
+  (if (and (typep (asdf:component-system c) 'tycl-system)
+           (not (typep c 'tycl-file)))
       (list (first (asdf:output-files (asdf:make-operation 'copy-source-op) c)))
       (call-next-method)))
 
