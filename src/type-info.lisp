@@ -91,6 +91,16 @@
              :accessor db-timestamp))
   (:documentation "Database of type information"))
 
+;;; Valid Types
+
+(defvar *valid-types*
+  '(:integer :float :double-float :rational :number
+    :string :character :simple-string
+    :boolean :symbol :keyword
+    :list :vector :array :hash-table :cons
+    :stream :pathname :function :t :void :null :any)
+  "List of valid TyCL type keywords")
+
 ;;; Global Type Database Instance
 
 (defvar *type-database* (make-instance 'type-database)

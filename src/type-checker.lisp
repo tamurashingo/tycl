@@ -69,10 +69,7 @@
    This is a basic check - can be extended later."
   (or
    ;; Basic type keywords
-   (member type '(:integer :float :double-float :rational :number
-                  :string :character :boolean :symbol :keyword
-                  :list :vector :array :hash-table :cons
-                  :stream :pathname :function :t :void :null :any))
+   (member type tycl::*valid-types*)
    ;; User-defined type (non-keyword symbol)
    (and (symbolp type) (not (keywordp type)))
    ;; Generic/Union type: (:integer :string) or (:list (:integer))
