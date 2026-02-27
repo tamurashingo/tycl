@@ -1,0 +1,31 @@
+;;; -*- mode: lisp -*-
+(in-package #:sample-project/test-fiveam)
+
+(def-suite math-suite
+  :in sample-project-suite
+  :description "Math module tests")
+
+(in-suite math-suite)
+
+(test add-test
+  (is (= (sample-project/math:add 2 3) 5))
+  (is (= (sample-project/math:add 0 0) 0))
+  (is (= (sample-project/math:add -1 1) 0)))
+
+(test multiply-test
+  (is (= (sample-project/math:multiply 4 5) 20))
+  (is (= (sample-project/math:multiply 0 5) 0))
+  (is (= (sample-project/math:multiply -2 3) -6)))
+
+(test factorial-test
+  (is (= (sample-project/math:factorial 0) 1))
+  (is (= (sample-project/math:factorial 1) 1))
+  (is (= (sample-project/math:factorial 5) 120))
+  (is (= (sample-project/math:factorial 6) 720)))
+
+(test safe-divide-test
+  (is (= (sample-project/math:safe-divide 10 2) 5))
+  (is (= (sample-project/math:safe-divide 7 2) 3))
+  (is (null (sample-project/math:safe-divide 5 0))))
+
+;;; vim: set filetype=lisp :

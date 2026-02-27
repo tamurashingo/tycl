@@ -156,6 +156,44 @@ ros install roswell/tycl.ros
 ;; => T
 ```
 
+### ASDF Integration
+
+TyCL provides an ASDF extension that allows `.tycl` files to be used directly in `defsystem` definitions. `asdf:load-system` handles the full transpile → compile → load pipeline automatically.
+
+```lisp
+(defsystem my-app
+  :class tycl/asdf:tycl-system
+  :defsystem-depends-on (#:tycl)
+  :tycl-output-dir "build/"
+  :components
+  ((:module "src"
+    :serial t
+    :components
+    ((:file "config")            ; plain .lisp — copied to output dir
+     (:tycl-file "math")        ; .tycl — transpiled to .lisp
+     (:tycl-file "main")))))
+```
+
+#### System Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `:tycl-output-dir` | `nil` | Output directory for transpiled/copied files. Relative to system root. When `nil`, files are generated alongside sources. |
+| `:tycl-extract-types` | `t` | Extract type information during transpilation |
+| `:tycl-save-types` | `t` | Generate `.tycl-types` files |
+
+#### Forward Declaration Stub
+
+When ASDF reads a `.asd` file, the Lisp reader must resolve `tycl/asdf:tycl-system` **before** `:defsystem-depends-on` loads TyCL. Add this stub before your `defsystem` form:
+
+```lisp
+(unless (find-package :tycl/asdf)
+  (defpackage #:tycl/asdf
+    (:export #:tycl-system #:tycl-file)))
+```
+
+See [docs/asdf.md](docs/asdf.md) for the full design document and a [sample project](sample/) for a working example.
+
 ### Type Information Storage (Planned)
 
 **Note: This feature is planned for future implementation.**
@@ -296,13 +334,16 @@ See [docs/lsp-server.md](docs/lsp-server.md) for implementation details.
 ```
 tycl/
 ├── src/              # Core transpiler and type checker
+│   └── asdf.lisp    # ASDF extension (tycl-system, tycl-file)
 ├── test/             # Test suite
 ├── roswell/          # CLI tools
 ├── clients/          # Editor clients
 │   ├── emacs/       # Emacs tycl-mode
 │   └── vscode/      # VS Code extension
+├── sample/           # Sample project using ASDF integration
 └── docs/             # Documentation
     ├── design.md         # Design specification
+    ├── asdf.md           # ASDF extension design
     └── lsp-server.md     # LSP server design
 ```
 

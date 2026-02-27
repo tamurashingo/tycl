@@ -1,0 +1,51 @@
+;;; -*- mode: lisp -*-
+;;;; Sample Project - Main Logic (TyCL)
+(in-package #:cl-user)
+(defpackage #:sample-project/main
+  (:use #:cl)
+  (:import-from #:sample-project/math
+                #:add
+                #:multiply
+                #:factorial
+                #:safe-divide)
+  (:import-from #:sample-project/string-utils
+                #:join-strings
+                #:repeat-string
+                #:truncate-string)
+  (:import-from #:sample-project/config
+                #:*app-name*
+                #:*version*
+                #:*max-items*)
+  (:export #:format-result
+           #:describe-app
+           #:run))
+
+(in-package #:sample-project/main)
+
+(defun [format-result :string] ([label :string] [value :integer])
+  "Format a calculation result as a string"
+  (format nil "~A: ~A" label value))
+
+(defun [describe-app :string] ()
+  "Return a description of the application"
+  (format nil "~A v~A (max items: ~A)"
+          *app-name* *version* *max-items*))
+
+(defun [run :void] ()
+  "Main entry point - demonstrates all modules working together"
+  (format t "~&=== ~A ===~%" (describe-app))
+  (format t "~%--- Math ---~%")
+  (format t "~A~%" (format-result "3 + 5" (add 3 5)))
+  (format t "~A~%" (format-result "4 * 7" (multiply 4 7)))
+  (format t "~A~%" (format-result "5!" (factorial 5)))
+  (let (([div-result (:integer :nil)] (safe-divide 10 3)))
+    (format t "10 / 3 = ~A~%" div-result))
+  (let (([div-zero (:integer :nil)] (safe-divide 10 0)))
+    (format t "10 / 0 = ~A~%" div-zero))
+  (format t "~%--- Strings ---~%")
+  (format t "~A~%" (join-strings '("Hello" "TyCL" "World") ", "))
+  (format t "~A~%" (repeat-string "ab" 3))
+  (format t "~A~%" (truncate-string "Hello, TyCL World!" 10))
+  (format t "~%Done.~%"))
+
+;;; vim: set filetype=lisp :

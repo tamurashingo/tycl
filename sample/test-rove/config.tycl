@@ -1,0 +1,13 @@
+(in-package #:cl-user)
+(defpackage #:sample-project/test/config
+  (:use #:cl
+        #:rove
+        #:sample-project/config))
+(in-package #:sample-project/test/config)
+
+(deftest config-test
+  (ok *app-name*)
+  (ok *version*)
+  (ok *max-items*))
+
+  

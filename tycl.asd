@@ -27,7 +27,8 @@
                  (:file "transpiler")
                  (:file "type-checker")
                  (:file "lsp-integration")
-                 (:file "main")))
+                 (:file "main")
+                 (:file "asdf")))
                (:module "src/lsp"
                 :serial t
                 :components
@@ -55,7 +56,8 @@
                  (:file "hooks-test")
                  (:file "tycl-hooks-test")
                  (:file "sample-hook-test")
-                 (:file "lsp-test")))
+                 (:file "lsp-test")
+                 (:file "asdf-test")))
                (:module "test/lsp"
                 :components
                 ((:file "did-change-test"))))
