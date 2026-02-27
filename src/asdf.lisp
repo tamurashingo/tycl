@@ -162,7 +162,7 @@
 (defmethod asdf:perform ((o copy-source-op) (c asdf:cl-source-file))
   (let* ((input-file (asdf:component-pathname c))
          (output-file (first (asdf:output-files o c))))
-    (unless (equal (truename input-file) (truename output-file))
+    (unless (equal (namestring input-file) (namestring output-file))
       (ensure-directories-exist output-file)
       (uiop:copy-file input-file output-file))))
 
