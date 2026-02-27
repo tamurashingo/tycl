@@ -377,7 +377,7 @@
                 until (eq form :eof)
                 do (handler-case
                        (progn
-                         (extract-type-info-from-form form)
+                         (extract-type-from-form form)
                          (check-form-types form))
                      (error (e)
                        (push `((:line . ,line-no)
