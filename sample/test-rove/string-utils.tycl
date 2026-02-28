@@ -2,21 +2,24 @@
 (defpackage #:sample-project/test/string-utils
   (:use #:cl
         #:rove
-        #:sample-project/math))
+        #:sample-project/string-utils))
 (in-package #:sample-project/test/string-utils)
 
-(deftest add-test
-  (ok (= (add 2 3) 5)))
+(deftest join-string-test
+  (ok (string= (join-strings '("a" "b" "c") ", ")
+               "a, b, c"))
+  (ok (string= (join-strings '("hello") "-")
+               "hello")))
 
-(deftest multiply-test
-  (ok (= (multiply 4 5) 20)))
+(deftest repeat-string-test
+  (ok (string= (repeat-string "ab" 3) "ababab"))
+  (ok (string= (repeat-string "x" 1) "x"))
+  (ok (string= (repeat-string "a" 0) "")))
 
-(deftest factorial-test
-  (ok (= (factorial 6) 720)))
-
-(deftest safe-divide-test
-  (ok (= (safe-divide 4 2) 2))
-
-  (ok (null (safe-divide 5 0)))) 
+(deftest truncate-string-test
+  (ok (string= (truncate-string "Hello, World!" 5)
+               "Hello..."))
+  (ok (string= (truncate-string "Hi" 10)
+               "Hi")))
 
 
