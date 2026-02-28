@@ -27,6 +27,12 @@
   (:use #:cl #:tycl/annotation #:tycl/reader)
   (:export #:check-file
            #:check-string
+           #:check-form
+           #:run-type-checks
+           #:type-error-info
+           #:error-form
+           #:error-message
+           #:error-location
            #:*type-check-errors*
            #:*enable-type-checking*))
 
@@ -39,6 +45,7 @@
   (:import-from #:tycl/type-checker
                 #:check-file
                 #:check-string
+                #:run-type-checks
                 #:*enable-type-checking*)
   (:import-from #:tycl/reader
                 #:enable-tycl-reader
@@ -50,6 +57,7 @@
            ;; Type checker (re-export from tycl/type-checker)
            #:check-file
            #:check-string
+           #:run-type-checks
            #:*enable-type-checking*
            ;; Reader (re-export from tycl/reader)
            #:enable-tycl-reader

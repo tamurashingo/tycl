@@ -180,13 +180,20 @@
 ;;; Transpile all files in .asd
 ;;; ============================================================
 
-(defun transpile-all-in-asd (asd-path)
+(defun transpile-all-in-asd (asd-path &key load-dependencies)
   "Load a .asd file and transpile all tycl-file components in all tycl-systems.
+   If LOAD-DEPENDENCIES is T, load each system's :depends-on systems before transpiling.
    Returns the number of files transpiled."
   (let ((systems (load-asd-file asd-path))
         (count 0))
     (dolist (entry systems)
       (let ((system (cdr entry)))
+        (when load-dependencies
+          (dolist (dep (asdf:system-depends-on system))
+            (handler-case
+                (asdf:load-system dep)
+              (error (e)
+                (format *error-output* "~&Warning: Failed to load dependency ~A: ~A~%" dep e)))))
         (labels ((process-component (component)
                    (cond
                      ((typep component 'tycl/asdf:tycl-file)
@@ -214,3 +221,44 @@
                         (process-component child))))))
           (process-component system))))
     count))
+
+;;; ============================================================
+;;; Check all files in .asd
+;;; ============================================================
+
+(defun check-all-in-asd (asd-path &key load-dependencies)
+  "Load a .asd file and type-check all tycl-file components in all tycl-systems.
+   If LOAD-DEPENDENCIES is T, load each system's :depends-on systems before checking.
+   This is needed when checked files reference packages defined in dependency systems.
+   Returns two values: the number of files checked and the number of files with errors."
+  (let ((systems (load-asd-file asd-path))
+        (checked 0)
+        (failed 0))
+    (dolist (entry systems)
+      (let ((system (cdr entry)))
+        ;; Load dependency systems if requested
+        (when load-dependencies
+          (dolist (dep (asdf:system-depends-on system))
+            (handler-case
+                (asdf:load-system dep)
+              (error (e)
+                (format *error-output* "~&Warning: Failed to load dependency ~A: ~A~%" dep e)))))
+        (labels ((process-component (component)
+                   (cond
+                     ((typep component 'tycl/asdf:tycl-file)
+                      (let ((input (asdf:component-pathname component)))
+                        (format t "~&Checking ~A~%" input)
+                        (handler-case
+                            (progn
+                              (incf checked)
+                              (unless (tycl:check-file input)
+                                (incf failed)))
+                          (error (e)
+                            (format *error-output* "~&Error checking ~A: ~A~%" input e)
+                            (incf checked)
+                            (incf failed)))))
+                     ((typep component 'asdf:module)
+                      (dolist (child (asdf:component-children component))
+                        (process-component child))))))
+          (process-component system))))
+    (values checked failed)))

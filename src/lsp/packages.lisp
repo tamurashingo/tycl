@@ -47,6 +47,7 @@
    #:load-and-cache-asd-files
    #:transpile-tycl-file
    #:transpile-all-in-asd
+   #:check-all-in-asd
    #:*cached-asd-files*
    #:*cached-asd-systems*))
 

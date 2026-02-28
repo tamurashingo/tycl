@@ -84,8 +84,14 @@ test.cli: clean.cli
 # Run sample project (make run + make test)
 test.sample:
 	@echo "Running sample project..."
+	@echo "=== run ========================================"
 	@$(MAKE) -C sample
+	@echo "=== unit test ========================================"
 	@$(MAKE) -C sample test
+	@echo "=== transpile ========================================"
+	@$(MAKE) -C sample transpile-all
+	@echo "=== type check ========================================"
+	@$(MAKE) -C sample check-all
 
 # Clean generated lisp files from CLI tests
 clean.cli:

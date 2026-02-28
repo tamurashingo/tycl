@@ -10,7 +10,7 @@
            #:safe-divide))
 (in-package #:sample-project/math)
 
-(defun [add :integer] ([x :integer] [y :integer])
+(defun [add :float] ([x :integer] [y :integer])
   "Add two integers"
   (+ x y))
 
@@ -24,7 +24,7 @@
       1
       (* n (factorial (1- n)))))
 
-(defun [safe-divide (:integer :nil)] ([x :integer] [y :integer])
+(defun [safe-divide (:integer :null)] ([x :integer] [y :integer])
   "Divide x by y, returning nil on division by zero"
   (if (zerop y)
       nil

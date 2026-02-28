@@ -24,8 +24,8 @@
                  (:file "type-info")
                  (:file "type-serializer")
                  (:file "type-extractor")
-                 (:file "transpiler")
                  (:file "type-checker")
+                 (:file "transpiler")
                  (:file "lsp-integration")
                  (:file "main")
                  (:file "asdf")))
@@ -58,7 +58,8 @@
                  (:file "tycl-hooks-test")
                  (:file "sample-hook-test")
                  (:file "lsp-test")
-                 (:file "asdf-test")))
+                 (:file "asdf-test")
+                 (:file "type-checker-test")))
                (:module "test/lsp"
                 :components
                 ((:file "did-change-test")

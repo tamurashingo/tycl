@@ -392,7 +392,6 @@
     (nreverse diagnostics)))
 
 (defun check-form-types (form)
-  "Check types in a form (placeholder for future implementation)"
-  ;; This will be expanded with actual type checking logic
-  (declare (ignore form))
+  "Check types in a form. Delegates to tycl/type-checker:check-form."
+  (tycl/type-checker:check-form form)
   t)

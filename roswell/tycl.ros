@@ -26,6 +26,9 @@ exec ros -Q -- $0 "$@"
   (format t "~&      Processes all tycl-file components in all tycl-systems~%~%")
   (format t "~&  check <input.tycl>~%")
   (format t "~&      Check type annotations in a .tycl file~%~%")
+  (format t "~&  check-all <file.asd>~%")
+  (format t "~&      Check all .tycl files defined in a .asd file~%")
+  (format t "~&      Processes all tycl-file components in all tycl-systems~%~%")
   (format t "~&  lsp [--swank [port]]~%")
   (format t "~&      Start LSP server (Language Server Protocol)~%")
   (format t "~&      Communicates via stdin/stdout using JSON-RPC~%")
@@ -38,6 +41,7 @@ exec ros -Q -- $0 "$@"
   (format t "~&  tycl transpile src/example.tycl build/example.lisp~%")
   (format t "~&  tycl transpile-all sample-project.asd~%")
   (format t "~&  tycl check src/example.tycl~%")
+  (format t "~&  tycl check-all sample-project.asd~%")
   (format t "~&  tycl lsp~%")
   (format t "~&  tycl lsp --swank~%")
   (format t "~&  tycl lsp --swank 9999~%"))
@@ -79,11 +83,31 @@ exec ros -Q -- $0 "$@"
        (handler-case
            (progn
              (format t "~&Transpiling all tycl files in ~A...~%" asd-file)
-             (let ((count (tycl.lsp:transpile-all-in-asd asd-file)))
+             (let ((count (tycl.lsp:transpile-all-in-asd asd-file :load-dependencies t)))
                (format t "~&Successfully transpiled ~D file(s)~%" count)
                (uiop:quit 0)))
          (error (e)
            (format t "~&Error during transpile-all: ~A~%" e)
+           (uiop:quit 1)))))))
+
+(defun cmd-check-all (argv)
+  "Handle check-all command"
+  (cond
+    ((null argv)
+     (format t "~&Error: No .asd file specified~%")
+     (print-usage)
+     (uiop:quit 1))
+    (t
+     (let ((asd-file (first argv)))
+       (handler-case
+           (progn
+             (format t "~&Checking all tycl files in ~A...~%" asd-file)
+             (multiple-value-bind (checked failed)
+                 (tycl.lsp:check-all-in-asd asd-file :load-dependencies t)
+               (format t "~&Checked ~D file(s), ~D failed~%" checked failed)
+               (uiop:quit (if (zerop failed) 0 1))))
+         (error (e)
+           (format t "~&Error during check-all: ~A~%" e)
            (uiop:quit 1)))))))
 
 (defun cmd-check (argv)
@@ -154,6 +178,11 @@ exec ros -Q -- $0 "$@"
 
 (defun main (&rest argv)
   "Main entry point for TyCL command-line tool"
+  (setf *debugger-hook*
+        (lambda (condition hook)
+          (declare (ignore hook))
+          (format *error-output* "~&Error: ~A~%" condition)
+          (uiop:quit 1)))
   (cond
     ;; No arguments - show help
     ((null argv)
@@ -174,6 +203,10 @@ exec ros -Q -- $0 "$@"
     ;; Transpile-all command
     ((string= (first argv) "transpile-all")
      (cmd-transpile-all (rest argv)))
+
+    ;; Check-all command
+    ((string= (first argv) "check-all")
+     (cmd-check-all (rest argv)))
 
     ;; Check command
     ((string= (first argv) "check")
