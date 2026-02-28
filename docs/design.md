@@ -415,12 +415,12 @@ Type information is saved in `.tycl-types` file (S-expression format) and `.tycl
   - [x] Variable name completion
   - [x] Type keyword completion
 
-**Phase 3: Advanced Features (Not Implemented)**
-- [ ] Go to definition (`textDocument/definition`)
+**Phase 3: Advanced Features (Partially Implemented)**
+- [x] Go to definition (`textDocument/definition`) - Stub: handler registered, capability advertised, returns null
 - [ ] Signature help (`textDocument/signatureHelp`)
 - [ ] Find references (`textDocument/references`)
 - [ ] Rename (`textDocument/rename`)
-- [ ] Document symbols (`textDocument/documentSymbol`)
+- [x] Document symbols (`textDocument/documentSymbol`) - Stub: handler registered, capability advertised, returns empty list
 
 **Phase 4: Editor Integration ✅ Complete**
 - [x] VS Code extension (`clients/vscode/`)
@@ -456,9 +456,9 @@ See **lsp-server.md** for details.
 - [ ] Extended generics
   - [ ] More complex nested generics
   - [ ] Custom types combined with generics
-- [ ] Struct/class slot type definitions
+- [x] Struct/class slot type definitions - Partially: `defclass` slot type extraction implemented (`src/type-extractor.lisp`), `defstruct` not supported
 - [ ] Type narrowing (type refinement in conditional branches)
-- [ ] Optional type checking during transpilation
+- [x] Optional type checking during transpilation - Partially: basic infrastructure exists (`src/type-checker.lisp`) with `check-form`, `check-string`, `check-file`, `type-compatible-p`, `infer-type`; not integrated into transpiler flow (`*enable-type-checking*` flag unused)
 
 ---
 
