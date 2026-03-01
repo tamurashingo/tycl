@@ -91,8 +91,10 @@
         (write-string cl-source out))
       (format t "~&Transpiled: ~A -> ~A~%" input-file output)
       
-      ;; Save type information if requested
+      ;; Save type information if requested (project-level tycl-types.tmp in cwd)
       (when (and extract-types save-types)
-        (tycl:save-package-types tycl:*current-package* input-file))
+        (tycl:save-project-types
+         (make-pathname :name "tycl-types" :type "tmp"
+                        :defaults *default-pathname-defaults*)))
       
       output)))

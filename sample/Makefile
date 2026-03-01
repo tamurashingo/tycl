@@ -13,7 +13,7 @@ test: clean test.rove test.fiveam
 
 clean:
 	rm -rf build
-	find . -name '*.tycl-types' -delete
+	rm -f tycl-types.tmp
 	cd test-rove && for f in *.tycl; do rm -f "$${f%.tycl}.lisp"; done
 
 run:

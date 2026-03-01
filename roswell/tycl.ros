@@ -121,6 +121,11 @@ exec ros -Q -- $0 "$@"
      (let ((input-file (first argv)))
        (handler-case
            (progn
+             ;; Load project type info from cwd if available
+             (let ((project-types (make-pathname :name "tycl-types" :type "tmp"
+                                                 :defaults *default-pathname-defaults*)))
+               (when (probe-file project-types)
+                 (tycl:load-type-database project-types)))
              (format t "~&Checking types in ~A...~%" input-file)
              (if (tycl:check-file input-file)
                  (progn

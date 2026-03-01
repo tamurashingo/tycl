@@ -109,21 +109,18 @@
   "Determine the output path for a transpiled .tycl file.
    If SYSTEM is non-NIL, use its tycl-output-dir to compute the path.
    If SYSTEM is NIL, output to the same directory as the source file.
-   Returns two values: the .lisp output path and the .tycl-types output path."
+   Returns the .lisp output path."
   (if system
       (let* ((output-dir (tycl/asdf::resolve-tycl-output-dir system))
              (source-dir (asdf:system-source-directory system))
-             (relative (enough-namestring file-path source-dir))
-             (lisp-path (if output-dir
-                            (merge-pathnames
-                             (make-pathname :type "lisp" :defaults relative)
-                             output-dir)
-                            (make-pathname :type "lisp" :defaults file-path)))
-             (types-path (make-pathname :type "tycl-types" :defaults file-path)))
-        (values lisp-path types-path))
+             (relative (enough-namestring file-path source-dir)))
+        (if output-dir
+            (merge-pathnames
+             (make-pathname :type "lisp" :defaults relative)
+             output-dir)
+            (make-pathname :type "lisp" :defaults file-path)))
       ;; No system found: output in same directory as source
-      (values (make-pathname :type "lisp" :defaults file-path)
-              (make-pathname :type "tycl-types" :defaults file-path))))
+      (make-pathname :type "lisp" :defaults file-path)))
 
 ;;; ============================================================
 ;;; Cache management
@@ -151,11 +148,10 @@
 
 (defun transpile-tycl-file (file-path)
   "Transpile a single .tycl file using the cached .asd information.
-   Returns the generated .tycl-types path on success, or NIL on failure."
+   Saves project-level tycl-types.tmp in the current directory.
+   Returns the tycl-types.tmp path on success, or NIL on failure."
   (let ((system (find-system-for-file file-path *cached-asd-systems*)))
-    (multiple-value-bind (lisp-path types-path)
-        (resolve-output-path file-path system)
-      (declare (ignore types-path))
+    (let ((lisp-path (resolve-output-path file-path system)))
       (when *debug-mode*
         (format *error-output* "~%[ASD] Transpiling ~A -> ~A~%" file-path lisp-path))
       (handler-case
@@ -163,13 +159,14 @@
             (ensure-directories-exist lisp-path)
             (tycl:transpile-file file-path lisp-path
                                  :extract-types t
-                                 :save-types t)
-            ;; transpile-file saves .tycl-types next to the source file
-            (let ((generated-types (make-pathname :type "tycl-types"
-                                                  :defaults file-path)))
+                                 :save-types nil)
+            ;; Save project-level type info
+            (let ((project-types (make-pathname :name "tycl-types" :type "tmp"
+                                                :defaults *default-pathname-defaults*)))
+              (tycl:save-project-types project-types)
               (when *debug-mode*
-                (format *error-output* "~%[ASD] Generated types: ~A~%" generated-types))
-              generated-types))
+                (format *error-output* "~%[ASD] Generated project types: ~A~%" project-types))
+              project-types))
         (error (e)
           (when *debug-mode*
             (format *error-output* "~%[ASD] Transpile error for ~A: ~A~%"
@@ -183,6 +180,7 @@
 (defun transpile-all-in-asd (asd-path &key load-dependencies)
   "Load a .asd file and transpile all tycl-file components in all tycl-systems.
    If LOAD-DEPENDENCIES is T, load each system's :depends-on systems before transpiling.
+   Saves project-level tycl-types.tmp next to the .asd file after all files are transpiled.
    Returns the number of files transpiled."
   (let ((systems (load-asd-file asd-path))
         (count 0))
@@ -212,7 +210,7 @@
                               (ensure-directories-exist output)
                               (tycl:transpile-file input output
                                                    :extract-types t
-                                                   :save-types t)
+                                                   :save-types nil)
                               (incf count))
                           (error (e)
                             (format *error-output* "~&Error transpiling ~A: ~A~%" input e)))))
@@ -220,6 +218,10 @@
                       (dolist (child (asdf:component-children component))
                         (process-component child))))))
           (process-component system))))
+    ;; Save project-level type information next to the .asd file
+    (when (> count 0)
+      (let ((project-types (tycl:generate-project-type-file-path asd-path)))
+        (tycl:save-project-types project-types)))
     count))
 
 ;;; ============================================================
@@ -229,8 +231,16 @@
 (defun check-all-in-asd (asd-path &key load-dependencies)
   "Load a .asd file and type-check all tycl-file components in all tycl-systems.
    If LOAD-DEPENDENCIES is T, load each system's :depends-on systems before checking.
-   This is needed when checked files reference packages defined in dependency systems.
+   Loads project-level tycl-types.tmp before checking so all type info is available.
    Returns two values: the number of files checked and the number of files with errors."
+  ;; Load project type information before checking
+  (let ((project-types (tycl:generate-project-type-file-path asd-path)))
+    (when (probe-file project-types)
+      (handler-case
+          (tycl:load-type-database project-types)
+        (error (e)
+          (format *error-output* "~&Warning: Failed to load project types from ~A: ~A~%"
+                  project-types e)))))
   (let ((systems (load-asd-file asd-path))
         (checked 0)
         (failed 0))

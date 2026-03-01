@@ -1,6 +1,5 @@
 build/*
 
 test-rove/*.lisp
-test-rove/*.tycl-types
 
-*.tycl-types
+tycl-types.tmp

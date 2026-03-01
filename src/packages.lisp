@@ -88,10 +88,11 @@
            #:get-package-symbols
            #:clear-type-database
            ;; Type serialization
-           #:save-package-types
-           #:load-package-types
            #:write-type-database
            #:load-type-database
+           #:save-project-types
+           #:generate-project-type-file-path
+           #:write-project-type-database
            ;; Type extraction
            #:extract-type-from-form
            #:*current-package*

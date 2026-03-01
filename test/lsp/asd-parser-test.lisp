@@ -131,18 +131,14 @@
 ;;; ============================================================
 
 (deftest test-resolve-output-path-with-system
-  (testing "Resolves output paths using system's tycl-output-dir"
+  (testing "Resolves output path using system's tycl-output-dir"
     (let* ((systems (tycl.lsp:load-asd-file (sample-asd-path)))
            (system (tycl.lsp:find-system-for-file (sample-math-tycl) systems)))
       (when system
-        (multiple-value-bind (lisp-path types-path)
-            (tycl.lsp:resolve-output-path (sample-math-tycl) system)
+        (let ((lisp-path (tycl.lsp:resolve-output-path (sample-math-tycl) system)))
           (ok lisp-path "Should return a .lisp path")
-          (ok types-path "Should return a .tycl-types path")
           (ok (string= "lisp" (pathname-type lisp-path))
               ".lisp extension for output")
-          (ok (string= "tycl-types" (pathname-type types-path))
-              ".tycl-types extension for types")
           ;; sample-project has :tycl-output-dir "build/"
           ;; so the lisp output should go to build/
           (let ((dir-components (pathname-directory lisp-path)))
@@ -152,19 +148,13 @@
 (deftest test-resolve-output-path-without-system
   (testing "Falls back to source directory when system is nil"
     (let* ((file-path (sample-math-tycl)))
-      (multiple-value-bind (lisp-path types-path)
-          (tycl.lsp:resolve-output-path file-path nil)
+      (let ((lisp-path (tycl.lsp:resolve-output-path file-path nil)))
         (ok lisp-path "Should return a .lisp path")
-        (ok types-path "Should return a .tycl-types path")
         (ok (string= "lisp" (pathname-type lisp-path)))
-        (ok (string= "tycl-types" (pathname-type types-path)))
         ;; Without a system, output goes next to source
         (ok (equal (pathname-directory lisp-path)
                    (pathname-directory file-path))
-            ".lisp should be in same directory as source")
-        (ok (equal (pathname-directory types-path)
-                   (pathname-directory file-path))
-            ".tycl-types should be in same directory as source")))))
+            ".lisp should be in same directory as source")))))
 
 ;;; ============================================================
 ;;; load-and-cache-asd-files tests
@@ -201,17 +191,19 @@
 ;;; ============================================================
 
 (deftest test-transpile-tycl-file-with-cache
-  (testing "Transpiles a .tycl file and returns the .tycl-types path"
+  (testing "Transpiles a .tycl file and returns the tycl-types.tmp path"
     ;; Set up cache from sample project
     (let ((tycl.lsp::*cached-asd-files* nil)
           (tycl.lsp::*cached-asd-systems* nil))
       (tycl.lsp:load-and-cache-asd-files (sample-root))
       (let ((result (tycl.lsp:transpile-tycl-file (sample-math-tycl))))
         (ok result "Should return a path on success")
-        (ok (string= "tycl-types" (pathname-type result))
-            "Should return a .tycl-types path")
+        (ok (string= "tycl-types" (pathname-name result))
+            "Should return a tycl-types.tmp path")
+        (ok (string= "tmp" (pathname-type result))
+            "Should have .tmp extension")
         (ok (probe-file result)
-            "Generated .tycl-types file should exist")))))
+            "Generated tycl-types.tmp file should exist")))))
 
 (deftest test-transpile-tycl-file-without-cache
   (testing "Transpiles even without cached systems (fallback to source dir)"
@@ -219,7 +211,8 @@
           (tycl.lsp::*cached-asd-systems* nil))
       (let ((result (tycl.lsp:transpile-tycl-file (sample-math-tycl))))
         (ok result "Should still succeed without cache")
-        (ok (string= "tycl-types" (pathname-type result)))))))
+        (ok (string= "tycl-types" (pathname-name result))
+            "Should return a tycl-types.tmp path")))))
 
 (deftest test-transpile-tycl-file-nonexistent
   (testing "Returns nil for non-existent file"
