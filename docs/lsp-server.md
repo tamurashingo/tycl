@@ -24,7 +24,7 @@ This is the design document for TyCL's standalone LSP server.
        │
        ↓
 ┌─────────────────────┐
-│ .tycl-types Files   │ (Type Information Database)
+│ tycl-types.tmp      │ (Project Type Information Database)
 └─────────────────────┘
 ```
 
@@ -33,7 +33,7 @@ This is the design document for TyCL's standalone LSP server.
 - **Standalone Execution**: Implemented as a Roswell script (`roswell/tycl-lsp.ros`)
 - **LSP Compliant**: Conforms to Language Server Protocol 3.17
 - **Communication**: JSON-RPC 2.0 via stdin/stdout
-- **Type Information Source**: Read from `.tycl-types` files
+- **Type Information Source**: Read from `tycl-types.tmp` project files
 - **Real-time Updates**: Reload type information on file changes
 
 ---
@@ -145,7 +145,7 @@ src/lsp/
    ↓
 3. Receive initialize request
    ↓
-4. Scan .tycl-types files in workspace
+4. Scan tycl-types.tmp files in workspace
    ↓
 5. Load type information into memory (build cache)
    ↓
@@ -171,7 +171,7 @@ src/lsp/
    ↓
 2. Call TyCL transpiler
    ↓
-3. Update .tycl-types file
+3. Update tycl-types.tmp file
    ↓
 4. Reload type information cache
    ↓
@@ -216,8 +216,8 @@ src/lsp/
 
 ### 5.2 Cache Update Strategy
 
-- **On Startup**: Load all `.tycl-types` files
-- **On Save**: Reload `.tycl-types` for the corresponding file
+- **On Startup**: Load all `tycl-types.tmp` files
+- **On Save**: Reload `tycl-types.tmp` for the corresponding project
 - **Periodic Check**: Monitor file system changes (optional)
 
 ---
@@ -300,10 +300,11 @@ Content-Length: 95\r\n
   location)     ; Definition location (file, line, column)
 
 (defun load-type-info-file (filepath)
-  "Load type information from .tycl-types file"
+  "Load type information from tycl-types.tmp file (supports multiple S-expressions)"
   (with-open-file (stream filepath)
-    (let ((data (read stream)))
-      (parse-type-info data))))
+    (loop for data = (read stream nil nil)
+          while data
+          do (process-type-database-entry data filepath))))
 
 (defun get-symbol-type-info (package-name symbol-name)
   "Retrieve type information for a symbol"
@@ -567,10 +568,10 @@ test-hover.sh
 
 - **Type Information Cache**
   - Implemented type information loading/management in `src/lsp/cache.lisp`
-  - Load type information from `.tycl-types` files
+  - Load type information from `tycl-types.tmp` project files (supports multiple S-expressions per file)
   - Cache management per package/symbol
 
-### 🚧 Next Steps (Phase 2)
+### ✅ Complete (Phase 2)
 
 - **Diagnostics** (`textDocument/publishDiagnostics`)
   - Syntax error detection
@@ -588,5 +589,5 @@ test-hover.sh
 
 ---
 
-**Last Updated**: 2026-02-22  
-**Status**: Phase 1 Complete, Phase 2 In Progress
+**Last Updated**: 2026-03-02
+**Status**: Phase 1-2 Complete, Phase 3 Partially Implemented

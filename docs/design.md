@@ -366,7 +366,7 @@ Type information includes:
 
 This enables type consistency checking and LSP completion/type hints.
 
-Type information is saved in `.tycl-types` file (S-expression format) and `.tycl-types.json` file (JSON format), which can be reused on next load.
+Type information is saved in a project-level `tycl-types.tmp` file (S-expression format containing multiple packages) and `.tycl-types.json` file (JSON format), which can be reused on next load.
 
 **Intended Uses:**
 1. LSP server type information (completion, hover, diagnostics)
@@ -393,7 +393,7 @@ Type information is saved in `.tycl-types` file (S-expression format) and `.tycl
   - [x] `textDocument/didSave` - File save notification
   - [x] `textDocument/didClose` - File close notification
 - [x] Type information cache (`src/lsp/cache.lisp`)
-  - [x] Load type information from `.tycl-types` file
+  - [x] Load type information from `tycl-types.tmp` file
   - [x] Cache management per package/symbol
 - [x] Server main loop (`src/lsp/server.lisp`)
 - [x] Package definitions (`src/lsp/packages.lisp`)

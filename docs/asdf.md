@@ -55,7 +55,7 @@ ASDF compiles and loads from the `.lisp` files under `build/`.
   :defsystem-depends-on (#:tycl)
   :tycl-output-dir "build/"
   :tycl-extract-types t      ;; Extract type info (default: t)
-  :tycl-save-types t         ;; Generate .tycl-types files (default: t)
+  :tycl-save-types t         ;; Save type info to tycl-types.tmp (default: t)
   :components
   ((:module "src"
     :components
@@ -88,7 +88,7 @@ structure, so no dedicated source directory setting is needed.
     :initarg :tycl-save-types
     :initform t
     :accessor tycl-save-types-p
-    :documentation "Whether to generate .tycl-types files")
+    :documentation "Whether to save type info to tycl-types.tmp")
    (tycl-type-error-severity
     :initarg :tycl-type-error-severity
     :initform :warn
@@ -344,7 +344,7 @@ User executes (asdf:load-system :my-app)
   |   |     +-- Call transpile-file
   |   |     |   +-- Auto-load tycl-hooks.lisp if present
   |   |     |   +-- Transpile TyCL -> CL
-  |   |     |   +-- Generate .tycl-types file (if configured)
+  |   |     |   +-- Save type info to tycl-types.tmp (if configured)
   |   |     +-- Output to build/*.lisp
   |   |
   |   +-- 2. Execute compile-op (input: build/*.lisp)
@@ -388,10 +388,12 @@ my-app/
 
 ## Decisions
 
-### `.tycl-types` file output location
+### `tycl-types.tmp` file output location
 
-- Placed in the same directory as the `.tycl` file (source directory)
-- The LSP server looks for `.tycl-types` in the same directory as the `.tycl` file, so this maintains consistency
+- Project-level type information is saved to `tycl-types.tmp` (a single file per project)
+- `transpile-all` outputs to the same directory as the `.asd` file
+- Single-file `transpile` outputs to the current working directory
+- The LSP server scans for `tycl-types.tmp` files in the workspace
 
 ### Type database scope
 

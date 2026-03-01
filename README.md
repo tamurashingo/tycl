@@ -180,7 +180,7 @@ TyCL provides an ASDF extension that allows `.tycl` files to be used directly in
 |--------|---------|-------------|
 | `:tycl-output-dir` | `nil` | Output directory for transpiled/copied files. Relative to system root. When `nil`, files are generated alongside sources. |
 | `:tycl-extract-types` | `t` | Extract type information during transpilation |
-| `:tycl-save-types` | `t` | Generate `.tycl-types` files |
+| `:tycl-save-types` | `t` | Save type information to `tycl-types.tmp` |
 
 #### Forward Declaration Stub
 
@@ -194,11 +194,9 @@ When ASDF reads a `.asd` file, the Lisp reader must resolve `tycl/asdf:tycl-syst
 
 See [docs/asdf.md](docs/asdf.md) for the full design document and a [sample project](sample/) for a working example.
 
-### Type Information Storage (Planned)
+### Type Information Storage
 
-**Note: This feature is planned for future implementation.**
-
-When using `load-tycl` or `tycl transpile`, TyCL will collect and store type information during transpilation:
+When using `load-tycl` or `tycl transpile`, TyCL collects and stores type information during transpilation:
 - Which package
 - Which function/variable/class
 - What type it has
@@ -209,7 +207,7 @@ This enables:
 3. Cross-package type dependency tracking
 4. Type-based documentation generation
 
-Type information is saved in `.tycl-types` files alongside the transpiled code.
+Type information is saved in a project-level `tycl-types.tmp` file. When using `tycl transpile-all`, the file is generated next to the `.asd` file. When using `tycl transpile` for a single file, it is generated in the current directory. The file contains multiple S-expressions (one per package) and supports merge-on-write to accumulate type information across transpilations.
 
 ### Custom Macro Support (Planned)
 
