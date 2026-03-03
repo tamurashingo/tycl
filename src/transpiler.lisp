@@ -14,7 +14,12 @@
     ;; Type annotation - extract symbol only
     ((type-annotation-p form)
      (annotation-symbol form))
-    
+
+    ;; deftype-tycl - strip entirely (no runtime output)
+    ((and (consp form) (symbolp (car form))
+          (string= (symbol-name (car form)) "DEFTYPE-TYCL"))
+     nil)
+
     ;; List - recursively process each element
     ((consp form)
      (cons (transpile-form (car form))
@@ -61,9 +66,10 @@
       (format out ";;;; DO NOT EDIT - changes will be overwritten~%~%")
       (dolist (form raw-forms)
         (let ((transpiled (transpile-form form)))
-          (write transpiled :stream out :pretty t :case :downcase)
-          (terpri out)
-          (terpri out))))))
+          (when transpiled
+            (write transpiled :stream out :pretty t :case :downcase)
+            (terpri out)
+            (terpri out)))))))
 
 (defun transpile-file (input-file &optional output-file &key extract-types save-types
                                                               (output *standard-output*))

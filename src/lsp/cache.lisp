@@ -74,7 +74,9 @@
                                                       (:class
                                                        (list :class
                                                              (getf props :slots)
-                                                             (getf props :superclasses))))
+                                                             (getf props :superclasses)))
+                                                      (:type-alias
+                                                       (getf props :expanded-type)))
                                           :location (cons (namestring filepath) 0))))
                                (when *debug-mode*
                                  (format *error-output* "~%[Cache]     Symbol: ~A (~A) type-spec: ~A~%"

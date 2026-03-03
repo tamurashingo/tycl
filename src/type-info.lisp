@@ -75,6 +75,15 @@
   (:default-initargs :kind :class)
   (:documentation "Type information for classes and structures"))
 
+;;; Type Alias Info
+
+(defclass type-alias-info (type-info)
+  ((expanded-type :initarg :expanded-type
+                  :accessor alias-expanded-type
+                  :documentation "The type this alias expands to"))
+  (:default-initargs :kind :type-alias)
+  (:documentation "Type information for type aliases defined by deftype-tycl"))
+
 ;;; Type Database
 
 (defclass type-database ()
@@ -84,6 +93,9 @@
    (package-index :initform (make-hash-table :test 'equal)
                   :accessor db-package-index
                   :documentation "Hash table: package -> list of symbols")
+   (type-aliases :initform (make-hash-table :test 'equal)
+                 :accessor db-type-aliases
+                 :documentation "Hash table: (package . alias-name) -> expanded-type")
    (version :initform 1
             :accessor db-version
             :type integer)
@@ -182,6 +194,66 @@
                   :slots slots
                   :superclasses superclasses
                   :source-location source-location)))
+
+;;; Type Alias Operations
+
+(defun make-type-alias-info (package symbol expanded-type &key source-location)
+  "Create and register a type alias"
+  (let* ((key (make-entry-key package symbol))
+         (db *type-database*))
+    ;; Store alias mapping for fast lookup
+    (setf (gethash key (db-type-aliases db)) expanded-type)
+    ;; Also register as type-info entry for serialization and LSP
+    (register-type-info
+     (make-instance 'type-alias-info
+                    :package package
+                    :symbol symbol
+                    :expanded-type expanded-type
+                    :source-location source-location))))
+
+(defun lookup-type-alias (package alias-name)
+  "Look up a type alias. Returns the expanded type or NIL if not found."
+  (let ((key (make-entry-key package alias-name)))
+    (gethash key (db-type-aliases *type-database*))))
+
+(defun resolve-type-alias (type-spec &optional (package *current-package*) (depth 0))
+  "Resolve a type specification, expanding any type aliases recursively.
+   Handles recursive aliases with depth limit to prevent infinite loops."
+  (when (> depth 50)
+    (warn "Type alias resolution depth limit reached for ~S" type-spec)
+    (return-from resolve-type-alias type-spec))
+  (cond
+    ;; Keywords are built-in types, never aliases
+    ((keywordp type-spec) type-spec)
+    ;; Non-keyword symbol: could be a type alias
+    ((symbolp type-spec)
+     (let ((expanded (lookup-type-alias package (string-upcase (symbol-name type-spec)))))
+       (if expanded
+           (resolve-type-alias expanded package (1+ depth))
+           type-spec)))
+    ;; String: could be a type alias name
+    ((stringp type-spec)
+     (let ((expanded (lookup-type-alias package (string-upcase type-spec))))
+       (if expanded
+           (resolve-type-alias expanded package (1+ depth))
+           type-spec)))
+    ;; Composite type: resolve each element
+    ((consp type-spec)
+     (cons (resolve-type-alias (car type-spec) package depth)
+           (mapcar (lambda (sub) (resolve-type-alias sub package depth))
+                   (cdr type-spec))))
+    ;; Anything else: return as-is
+    (t type-spec)))
+
+(defun get-package-type-aliases (package)
+  "Get all type aliases defined in a package. Returns alist of (name . expanded-type)."
+  (let ((aliases nil)
+        (prefix (string-upcase package)))
+    (maphash (lambda (key expanded-type)
+               (when (string= (car key) prefix)
+                 (push (cons (cdr key) expanded-type) aliases)))
+             (db-type-aliases *type-database*))
+    (nreverse aliases)))
 
 ;;; Type Specification Utilities
 

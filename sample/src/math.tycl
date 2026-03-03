@@ -10,24 +10,35 @@
            #:safe-divide))
 (in-package #:sample-project/math)
 
-(defun [add :float] ([x :integer] [y :integer])
+;;; Type aliases
+(deftype-tycl num :integer)
+(deftype-tycl nullable-num (:integer :null))
+(deftype-tycl numbers (:list (num)))
+
+(defun [add num] ([x num] [y num])
   "Add two integers"
   (+ x y))
 
-(defun [multiply :integer] ([x :integer] [y :integer])
+(defun [multiply num] ([x num] [y num])
   "Multiply two integers"
   (* x y))
 
-(defun [factorial :integer] ([n :integer])
+(defun [factorial num] ([n num])
   "Calculate factorial recursively"
   (if (<= n 1)
       1
       (* n (factorial (1- n)))))
 
-(defun [safe-divide (:integer :null)] ([x :integer] [y :integer])
+(defun [safe-divide nullable-num] ([x num] [y num])
   "Divide x by y, returning nil on division by zero"
   (if (zerop y)
       nil
       (floor x y)))
+
+(defun [average num] ([numbers numbers])
+  "Calculate the average of a list of numbers"
+  (if (null numbers)
+      0
+      (/ (reduce #'+ numbers) (length numbers))))
 
 ;;; vim: set filetype=lisp :

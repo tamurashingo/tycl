@@ -28,7 +28,10 @@
         ((let let*)
          (validate-let-form form))
         ((defclass)
-         (validate-defclass-form form))))))
+         (validate-defclass-form form))
+        (otherwise
+         (when (and (symbolp op) (string= (symbol-name op) "DEFTYPE-TYCL"))
+           (validate-deftype-tycl-form form)))))))
 
 (defun validate-defun-form (form)
   "Validate defun form syntax"
@@ -136,11 +139,23 @@
                      1)
                     diagnostics))))))))
 
+(defun validate-deftype-tycl-form (form)
+  "Validate deftype-tycl form syntax"
+  (when (< (length form) 3)
+    (error "deftype-tycl requires name and type"))
+  (unless (and (symbolp (second form)) (not (keywordp (second form))))
+    (error "deftype-tycl name must be a non-keyword symbol")))
+
 (defun valid-type-p (type-spec)
   "Check if a type specification is valid"
   (cond
     ((keywordp type-spec)
      (member type-spec tycl::*valid-types*))
+    ;; Non-keyword symbol: check if it's a type alias
+    ((symbolp type-spec)
+     (not (null (tycl:lookup-type-alias
+                 tycl:*current-package*
+                 (string-upcase (symbol-name type-spec))))))
     ((consp type-spec)
      (if (keywordp (car type-spec))
          ;; Generic type like (:list (:integer))

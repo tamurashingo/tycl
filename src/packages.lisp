@@ -67,6 +67,7 @@
            #:compile-and-load-tycl
            ;; Type info data structures
            #:type-info
+           #:type-info-kind
            #:type-info-package
            #:type-info-symbol
            #:value-type-info
@@ -79,6 +80,8 @@
            #:class-type-info
            #:class-slots
            #:class-superclasses
+           #:type-alias-info
+           #:alias-expanded-type
            #:type-database
            #:*valid-types*
            #:*type-database*
@@ -87,6 +90,11 @@
            #:get-type-info
            #:get-package-symbols
            #:clear-type-database
+           ;; Type aliases
+           #:make-type-alias-info
+           #:lookup-type-alias
+           #:resolve-type-alias
+           #:get-package-type-aliases
            ;; Type serialization
            #:write-type-database
            #:load-type-database

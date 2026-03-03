@@ -59,7 +59,8 @@
                  (:file "sample-hook-test")
                  (:file "lsp-test")
                  (:file "asdf-test")
-                 (:file "type-checker-test")))
+                 (:file "type-checker-test")
+                 (:file "deftype-tycl-test")))
                (:module "test/lsp"
                 :components
                 ((:file "did-change-test")

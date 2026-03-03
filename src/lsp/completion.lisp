@@ -35,9 +35,10 @@
           (string-upcase (subseq current-line (1+ start) character)))))))
 
 (defun get-type-completions (prefix)
-  "Get completion items for type keywords"
+  "Get completion items for type keywords and type aliases"
   (let ((types tycl::*valid-types*)
         (items '()))
+    ;; Built-in types
     (dolist (type types)
       (let ((type-str (format nil "~(~A~)" type)))
         (when (or (null prefix)
@@ -45,6 +46,19 @@
                  (and (>= (length type-str) (length prefix))
                       (string-equal prefix (subseq type-str 0 (length prefix)))))
           (push (make-completion-item type-str 25 type-str) items))))
+    ;; Type aliases from cache
+    (dolist (symbol (get-all-symbols))
+      (when (eq (type-info-kind symbol) :type-alias)
+        (let ((name (string-downcase (type-info-name symbol))))
+          (when (or (null prefix)
+                   (string= prefix "")
+                   (and (>= (length name) (length prefix))
+                        (string-equal prefix (subseq name 0 (length prefix)))))
+            (push (make-completion-item-with-detail
+                   name 25
+                   (format nil "type alias -> ~A"
+                           (format-type-spec (type-info-type-spec symbol))))
+                  items)))))
     items))
 
 (defun get-function-completions (prefix)

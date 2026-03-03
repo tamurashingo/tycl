@@ -73,7 +73,10 @@
                                        (:type . ,(type-to-json (getf slot :type)))))
                                    (class-slots type-info)))
                  (:superclasses . ,(mapcar (lambda (s) (string-downcase (symbol-name s)))
-                                          (class-superclasses type-info)))))))))
+                                          (class-superclasses type-info))))))
+      (:type-alias
+       (append base-info
+               `((:expanded-type . ,(type-to-json (alias-expanded-type type-info)))))))))
 
 (defun serialize-type-database-json ()
   "Serialize current type database to JSON-compatible structure"
@@ -284,7 +287,8 @@
                 (:function "Function")
                 (:method "Method")
                 (:class "Class")
-                (:value "Variable"))))
+                (:value "Variable")
+                (:type-alias "TypeAlias"))))
     `((:label . ,(type-info-symbol type-info))
       (:kind . ,kind)
       (:detail . ,(format-type-signature type-info))
@@ -309,7 +313,9 @@
              (function-return-type type-info)))
     
     (:class
-     (format nil "class ~a" (type-info-symbol type-info)))))
+     (format nil "class ~a" (type-info-symbol type-info)))
+    (:type-alias
+     (format nil "type ~A = ~A" (type-info-symbol type-info) (alias-expanded-type type-info)))))
 
 (defun get-hover-info (symbol &optional package)
   "Get hover information for LSP hover request"
@@ -360,7 +366,11 @@
                         (format nil "(~a :type ~a)" 
                                (getf slot :name)
                                (getf slot :type)))
-                      (class-slots type-info)))))))
+                      (class-slots type-info))))
+      (:type-alias
+       (format s "```lisp~%(deftype-tycl ~A ~A)~%```"
+               (type-info-symbol type-info)
+               (alias-expanded-type type-info))))))
 
 ;;; ============================================================
 ;;; Diagnostic Support

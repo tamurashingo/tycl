@@ -67,32 +67,35 @@
 
 (defun type-compatible-p (actual expected)
   "Check if ACTUAL type is compatible with EXPECTED type.
+   Resolves type aliases before comparison.
    Handles union types and :t (any type)."
-  (cond
-    ;; Any type accepts everything
-    ((or (eq expected :t) (eq expected :any)) t)
-    ((or (eq actual :t) (eq actual :any)) t)
+  (let ((actual (tycl::resolve-type-alias actual *current-package*))
+        (expected (tycl::resolve-type-alias expected *current-package*)))
+    (cond
+      ;; Any type accepts everything
+      ((or (eq expected :t) (eq expected :any)) t)
+      ((or (eq actual :t) (eq actual :any)) t)
 
-    ;; Exact match
-    ((equal actual expected) t)
+      ;; Exact match
+      ((equal actual expected) t)
 
-    ;; Union type: actual must be one of the union members
-    ((and (consp expected) (not (consp actual)))
-     (member actual expected :test #'equal))
+      ;; Union type: actual must be one of the union members
+      ((and (consp expected) (not (consp actual)))
+       (member actual expected :test #'equal))
 
-    ;; Generic types: check base and parameters
-    ((and (consp actual) (consp expected))
-     (and (equal (first actual) (first expected))
-          (= (length actual) (length expected))
-          (every #'type-compatible-p (rest actual) (rest expected))))
+      ;; Generic types: check base and parameters
+      ((and (consp actual) (consp expected))
+       (and (equal (first actual) (first expected))
+            (= (length actual) (length expected))
+            (every #'type-compatible-p (rest actual) (rest expected))))
 
-    ;; Numeric compatibility
-    ((and (member actual '(:integer :float :double-float :rational))
-          (member expected '(:number)))
-     t)
+      ;; Numeric compatibility
+      ((and (member actual '(:integer :float :double-float :rational))
+            (member expected '(:number)))
+       t)
 
-    ;; Default: incompatible
-    (t nil)))
+      ;; Default: incompatible
+      (t nil))))
 
 ;;; Type Inference
 
@@ -426,6 +429,14 @@
                      (string pkg)
                      (symbol (symbol-name pkg))
                      (keyword (symbol-name pkg))))))
+          env)
+         ;; deftype-tycl
+         ((and (symbolp op) (string= (symbol-name op) "DEFTYPE-TYCL"))
+          (when (>= (length form) 3)
+            (let ((expanded-type (third form)))
+              (unless (valid-type-p expanded-type)
+                (record-type-error form
+                                   (format nil "Invalid type in deftype-tycl: ~S" expanded-type)))))
           env)
          ;; Other function calls (only if op is a symbol)
          ((symbolp op)

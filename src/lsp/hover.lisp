@@ -38,14 +38,20 @@
     ((keywordp type-spec)
      (format nil "~(~A~)" type-spec))
     ((consp type-spec)
-     (if (keywordp (car type-spec))
-         ;; Generic type
-         (format nil "~(~A~)<~{~A~^, ~}>"
-                (car type-spec)
-                (mapcar #'format-type-spec (cdr type-spec)))
-         ;; Union type
-         (format nil "~{~A~^ | ~}"
-                (mapcar #'format-type-spec type-spec))))
+     (cond
+       ;; Union type: all elements are keywords, e.g. (:integer :null)
+       ((every #'keywordp type-spec)
+        (format nil "~{~A~^ | ~}"
+               (mapcar #'format-type-spec type-spec)))
+       ;; Generic type: first is keyword, rest are params, e.g. (:list (:integer))
+       ((keywordp (car type-spec))
+        (format nil "~(~A~)<~{~A~^, ~}>"
+               (car type-spec)
+               (mapcar #'format-type-spec (cdr type-spec))))
+       ;; Fallback: union of mixed types
+       (t
+        (format nil "~{~A~^ | ~}"
+               (mapcar #'format-type-spec type-spec)))))
     (t (format nil "~A" type-spec))))
 
 (defun format-function-signature (info)
@@ -77,6 +83,12 @@
   (format nil "```commonlisp~%(defclass ~A ...)~%```"
          (type-info-name info)))
 
+(defun format-type-alias-info (info)
+  "Format type alias information for hover display"
+  (format nil "```commonlisp~%(deftype-tycl ~A ~A)~%```"
+          (type-info-name info)
+          (format-type-spec (type-info-type-spec info))))
+
 (defun format-hover-content (info)
   "Format type information for hover display"
   (case (type-info-kind info)
@@ -84,6 +96,7 @@
     (:value (format-value-info info))
     (:class (format-class-info info))
     (:method (format-function-signature info))
+    (:type-alias (format-type-alias-info info))
     (otherwise (format nil "Symbol: ~A" (type-info-name info)))))
 
 (defun extract-package-name (text)

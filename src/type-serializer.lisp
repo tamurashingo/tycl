@@ -27,7 +27,11 @@
      `(:class
        :symbol ,(type-info-symbol type-info)
        :slots ,(class-slots type-info)
-       :superclasses ,(class-superclasses type-info)))))
+       :superclasses ,(class-superclasses type-info)))
+    (type-alias-info
+     `(:type-alias
+       :symbol ,(type-info-symbol type-info)
+       :expanded-type ,(alias-expanded-type type-info)))))
 
 (defun serialize-package-types (package)
   "Serialize all type information for a package"
@@ -149,6 +153,11 @@
         (getf props :symbol)
         (getf props :slots)
         (getf props :superclasses)))
+      (:type-alias
+       (make-type-alias-info
+        package
+        (getf props :symbol)
+        (getf props :expanded-type)))
       (otherwise
        (warn "Unknown type info kind: ~A" kind)
        nil))))

@@ -26,6 +26,7 @@
         ((eq operator 'defclass) (extract-defclass-type form))
         ((eq operator 'defmethod) (extract-defmethod-type form))
         ((eq operator 'in-package) (update-current-package form))
+        ((string= (symbol-name operator) "DEFTYPE-TYCL") (extract-deftype-tycl form))
         ;; Local bindings (not persisted, used for type checking)
         ((member operator '(let let*)) (extract-let-bindings form env))
         ((member operator '(flet labels)) (extract-local-functions form env))
@@ -172,6 +173,27 @@
                           type 
                           (string-upcase (symbol-name type))))
                     :t)))
+
+;;; deftype-tycl Type Extraction
+
+(defun extract-deftype-tycl (form)
+  "Extract type alias from (deftype-tycl name expanded-type) form.
+   Examples:
+     (deftype-tycl userid :integer)
+     (deftype-tycl string-list (:list :string))"
+  (when (< (length form) 3)
+    (warn "deftype-tycl requires name and type: ~S" form)
+    (return-from extract-deftype-tycl nil))
+  (let ((name (second form))
+        (expanded-type (third form)))
+    (unless (and name (symbolp name) (not (keywordp name)))
+      (warn "deftype-tycl name must be a non-keyword symbol: ~S" name)
+      (return-from extract-deftype-tycl nil))
+    (make-type-alias-info
+     *current-package*
+     (string-upcase (symbol-name name))
+     expanded-type
+     :source-location *current-file*)))
 
 ;;; Package Management
 
