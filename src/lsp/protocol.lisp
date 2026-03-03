@@ -40,6 +40,22 @@
         (format *error-output* "~%Error reading message: ~A~%" e))
       nil)))
 
+(defun read-json-rpc-message-with-timeout (stream timeout-ms)
+  "Read a JSON-RPC message with an optional timeout.
+   If TIMEOUT-MS is NIL, block indefinitely (calls read-json-rpc-message).
+   Otherwise, poll with listen + sleep at 10ms intervals.
+   Returns the message alist, NIL on EOF, or :timeout if the deadline expires."
+  (if (null timeout-ms)
+      (read-json-rpc-message stream)
+      (let ((deadline (+ (get-internal-real-time)
+                         (* timeout-ms (/ internal-time-units-per-second 1000)))))
+        (loop
+          (when (listen stream)
+            (return (read-json-rpc-message stream)))
+          (when (>= (get-internal-real-time) deadline)
+            (return :timeout))
+          (sleep 0.01)))))
+
 (defun write-json-rpc-message (message stream)
   "Write a JSON-RPC message to stream"
   (let* ((json (cl-json:encode-json-to-string message))

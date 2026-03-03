@@ -27,16 +27,34 @@
   :group 'languages
   :prefix "tycl-")
 
-(defcustom tycl-lsp-server-command '("ros" "roswell/tycl.ros" "lsp")
+(defcustom tycl-lsp-server-command '("tycl" "lsp")
   "Command to start TyCL LSP server."
   :type '(repeat string)
   :group 'tycl)
 
 (defcustom tycl-lsp-server-root-path nil
-  "Path to TyCL installation directory (containing roswell/tycl.ros).
-If nil, assumes 'ros' is in PATH and tycl.ros is installed system-wide."
+  "Path to TyCL source directory for development.
+When set, uses roswell/tycl.ros under this directory instead of the installed tycl command.
+If nil, uses `tycl-lsp-server-command' as-is."
   :type '(choice (const :tag "Use system PATH" nil)
                  (directory :tag "TyCL installation directory"))
+  :group 'tycl)
+
+(defcustom tycl-diagnostics-debounce-ms 500
+  "Delay in milliseconds before computing diagnostics after a change.
+0 means immediate (no debounce)."
+  :type 'integer
+  :group 'tycl)
+
+(defcustom tycl-swank-enabled nil
+  "If non-nil, start a Swank server alongside the LSP server."
+  :type 'boolean
+  :group 'tycl)
+
+(defcustom tycl-swank-port 4005
+  "Port number for the Swank server.
+Only used when `tycl-swank-enabled' is non-nil."
+  :type 'integer
   :group 'tycl)
 
 (defvar tycl-mode-syntax-table
@@ -75,23 +93,32 @@ the [symbol :type] syntax.
   (when (featurep 'lsp-mode)
     (tycl-lsp-setup)))
 
+(defun tycl--build-server-command ()
+  "Build the LSP server command list, including Swank arguments if enabled."
+  (let ((cmd (if tycl-lsp-server-root-path
+                 (list "ros"
+                       (expand-file-name "roswell/tycl.ros"
+                                         tycl-lsp-server-root-path)
+                       "lsp")
+               (copy-sequence tycl-lsp-server-command))))
+    (when tycl-swank-enabled
+      (setq cmd (append cmd (list "--swank" (number-to-string tycl-swank-port)))))
+    cmd))
+
 (defun tycl-lsp-setup ()
   "Set up LSP for TyCL mode."
   (when (fboundp 'lsp-register-client)
-    (let* ((server-cmd (if tycl-lsp-server-root-path
-                           (list "ros"
-                                 (expand-file-name "roswell/tycl.ros"
-                                                   tycl-lsp-server-root-path)
-                                 "lsp")
-                         tycl-lsp-server-command)))
-      (lsp-register-client
-       (make-lsp-client
-        :new-connection (lsp-stdio-connection (lambda () server-cmd))
-        :major-modes '(tycl-mode)
-        :server-id 'tycl-lsp
-        :priority 1
-        :activation-fn (lambda (filename &optional _)
-                         (string-match-p "\\.tycl\\'" filename)))))))
+    (lsp-register-client
+     (make-lsp-client
+      :new-connection (lsp-stdio-connection #'tycl--build-server-command)
+      :major-modes '(tycl-mode)
+      :server-id 'tycl-lsp
+      :priority 1
+      :initialization-options
+      (lambda ()
+        `(:diagnosticDebounceMs ,tycl-diagnostics-debounce-ms))
+      :activation-fn (lambda (filename &optional _)
+                       (string-match-p "\\.tycl\\'" filename))))))
 
 ;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.tycl\\'" . tycl-mode))

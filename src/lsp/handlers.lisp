@@ -11,9 +11,15 @@
          (root-path (if root-uri
                        (uiop:parse-native-namestring
                         (ppcre:regex-replace "^file://" root-uri ""))
-                       (uiop:getcwd))))
+                       (uiop:getcwd)))
+         (init-options (cdr (assoc :initialization-options params)))
+         (debounce-ms (when init-options
+                        (cdr (assoc :diagnostic-debounce-ms init-options)))))
+    (when debounce-ms
+      (setf *diagnostics-debounce-ms* debounce-ms))
     (when *debug-mode*
-      (format *error-output* "~%Initializing workspace: ~A~%" root-path))
+      (format *error-output* "~%Initializing workspace: ~A~%" root-path)
+      (format *error-output* "~%Diagnostics debounce: ~Ams~%" *diagnostics-debounce-ms*))
 
     ;; Load and cache .asd files from workspace root
     (handler-case
@@ -21,6 +27,18 @@
       (error (e)
         (when *debug-mode*
           (format *error-output* "~%Error loading .asd files: ~A~%" e))))
+
+    ;; Transpile all .tycl files to generate tycl-types.tmp
+    (when *cached-asd-files*
+      (dolist (asd-file *cached-asd-files*)
+        (handler-case
+            (progn
+              (when *debug-mode*
+                (format *error-output* "~%Transpiling all in ~A~%" asd-file))
+              (transpile-all-in-asd asd-file :output *error-output*))
+          (error (e)
+            (when *debug-mode*
+              (format *error-output* "~%Error transpiling ~A: ~A~%" asd-file e))))))
 
     ;; Load type information from workspace
     (load-workspace-types root-path)
@@ -121,8 +139,10 @@
         (dolist (change content-changes)
           (setf text (apply-content-change text change)))
         (setf (gethash uri *open-documents*) text)
-        ;; Send diagnostics on change
-        (publish-diagnostics uri text stream)))
+        ;; Schedule diagnostics with debounce (or immediate if debounce is 0)
+        (if (zerop *diagnostics-debounce-ms*)
+            (publish-diagnostics uri text stream)
+            (schedule-diagnostics uri))))
     (when *debug-mode*
       (format *error-output* "~%Changed document: ~A~%" uri))))
 
@@ -134,6 +154,9 @@
          (text (gethash uri *open-documents*)))
     (when *debug-mode*
       (format *error-output* "~%Saved document: ~A~%" uri))
+
+    ;; Cancel any pending debounced diagnostics for this URI
+    (remhash uri *pending-diagnostics*)
 
     ;; If it's a .tycl file, transpile and reload type information
     (when (string= (pathname-type path) "tycl")
@@ -147,7 +170,7 @@
               (when *debug-mode*
                 (format *error-output* "~%Error reloading types: ~A~%" e)))))))
 
-    ;; Send diagnostics
+    ;; Send diagnostics immediately on save
     (when text
       (publish-diagnostics uri text stream))))
 
@@ -157,8 +180,55 @@
   (let* ((text-document (cdr (assoc :text-document params)))
          (uri (cdr (assoc :uri text-document))))
     (remhash uri *open-documents*)
+    ;; Cancel any pending debounced diagnostics for this URI
+    (remhash uri *pending-diagnostics*)
     (when *debug-mode*
       (format *error-output* "~%Closed document: ~A~%" uri))))
+
+;;; Diagnostics debounce helpers
+
+(defun schedule-diagnostics (uri)
+  "Schedule diagnostics for URI after debounce delay.
+   Sets the deadline in *pending-diagnostics*."
+  (let ((deadline (+ (get-internal-real-time)
+                     (* *diagnostics-debounce-ms*
+                        (/ internal-time-units-per-second 1000)))))
+    (setf (gethash uri *pending-diagnostics*) deadline)))
+
+(defun process-pending-diagnostics (stream)
+  "Process any pending diagnostics whose deadline has passed.
+   Publishes diagnostics for each expired URI and removes it from the pending table."
+  (let ((now (get-internal-real-time))
+        (expired-uris nil))
+    ;; Collect expired URIs
+    (maphash (lambda (uri deadline)
+               (when (<= deadline now)
+                 (push uri expired-uris)))
+             *pending-diagnostics*)
+    ;; Process each expired URI
+    (dolist (uri expired-uris)
+      (remhash uri *pending-diagnostics*)
+      (let ((text (gethash uri *open-documents*)))
+        (when text
+          (publish-diagnostics uri text stream))))))
+
+(defun nearest-deadline ()
+  "Return the nearest deadline from *pending-diagnostics*, or NIL if none pending."
+  (let ((min-deadline nil))
+    (maphash (lambda (uri deadline)
+               (declare (ignore uri))
+               (when (or (null min-deadline) (< deadline min-deadline))
+                 (setf min-deadline deadline)))
+             *pending-diagnostics*)
+    min-deadline))
+
+(defun compute-timeout-ms ()
+  "Compute milliseconds until the nearest deadline, or NIL if no pending diagnostics.
+   Returns 0 if the deadline has already passed."
+  (let ((deadline (nearest-deadline)))
+    (when deadline
+      (let ((remaining (- deadline (get-internal-real-time))))
+        (max 0 (ceiling (* remaining (/ 1000 internal-time-units-per-second))))))))
 
 (defun handle-hover (params id stream)
   "Handle textDocument/hover request"

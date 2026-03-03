@@ -128,13 +128,23 @@
           "Document B should remain unchanged"))))
 
 (deftest did-change-publishes-diagnostics-test
-  (testing "didChange sends publishDiagnostics notification"
-    (let ((uri "file:///tmp/test-diag.tycl")
+  (testing "didChange with debounce does not publish diagnostics immediately"
+    (let ((tycl.lsp::*diagnostics-debounce-ms* 500)
+          (uri "file:///tmp/test-diag.tycl")
+          (text "(defun hello () \"hello\")"))
+      (setup-document uri text)
+      (let ((output (call-did-change uri 2 `(((:text . ,text))))))
+        (ok (= (length output) 0)
+            "Should produce no output (diagnostics are debounced)"))))
+
+  (testing "didChange with debounce=0 publishes diagnostics immediately"
+    (let ((tycl.lsp::*diagnostics-debounce-ms* 0)
+          (uri "file:///tmp/test-diag-immediate.tycl")
           (text "(defun hello () \"hello\")"))
       (setup-document uri text)
       (let ((output (call-did-change uri 2 `(((:text . ,text))))))
         (ok (> (length output) 0)
-            "Should produce output (publishDiagnostics notification)")
+            "Should produce output (diagnostics are immediate)")
         ;; cl-json escapes / as \/ in JSON output
         (ok (search "textDocument\\/publishDiagnostics" output)
             "Output should contain publishDiagnostics method")))))

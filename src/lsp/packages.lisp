@@ -32,12 +32,19 @@
    
    ;; Diagnostics
    #:publish-diagnostics
+   #:schedule-diagnostics
+   #:process-pending-diagnostics
+   #:nearest-deadline
+   #:compute-timeout-ms
    
    ;; Hover
    #:get-hover-info
    
    ;; Completion
    #:get-completion-items
+
+   ;; Protocol (timeout)
+   #:read-json-rpc-message-with-timeout
 
    ;; ASD parser
    #:find-asd-files
@@ -58,3 +65,10 @@
 
 (defvar *shutdown-requested* nil
   "Flag indicating shutdown was requested")
+
+(defvar *pending-diagnostics* (make-hash-table :test 'equal)
+  "Hash table mapping URI to deadline (internal-real-time) for pending diagnostics")
+
+(defvar *diagnostics-debounce-ms* 500
+  "Debounce delay in milliseconds before computing diagnostics after a change.
+   0 means immediate (no debounce). Can be overridden via initializationOptions.")

@@ -110,12 +110,14 @@ tycl help
 **Installation:**
 
 ```bash
-# Install using make (requires roswell)
-make install
+# Install with roswell (recommended)
+ros install tamurashingo/tycl
 
-# Or install directly with roswell
-ros install roswell/tycl.ros
+# Or install from local source using make
+make install
 ```
+
+After installation, the `tycl` command is available directly in your PATH.
 
 ### Loading TyCL Files
 
@@ -247,10 +249,6 @@ TyCL provides a Language Server Protocol implementation for modern editor integr
 #### Starting LSP Server
 
 ```bash
-# Via Roswell script
-ros run roswell/tycl.ros lsp
-
-# Or via command line tool
 tycl lsp
 ```
 
@@ -268,12 +266,11 @@ npm run package
 code --install-extension tycl-0.1.0.vsix
 ```
 
-Configuration example (`.vscode/settings.json`):
+Development configuration example (`.vscode/settings.json`):
 
 ```json
 {
-  "tycl.lsp.enabled": true,
-  "tycl.lsp.serverPath": "/path/to/tycl"
+  "tycl.lsp.serverPath": "/path/to/tycl-project-root"
 }
 ```
 
@@ -291,8 +288,8 @@ Install `tycl-mode` from `clients/emacs/`:
 (use-package lsp-mode
   :hook (tycl-mode . lsp-deferred))
 
-;; Optional: specify TyCL installation path
-(setq tycl-lsp-server-root-path "/path/to/tycl")
+;; Optional: for development, specify TyCL project root
+(setq tycl-lsp-server-root-path "/path/to/tycl-project-root")
 ```
 
 See [clients/emacs/README.md](clients/emacs/README.md) for details.
@@ -305,8 +302,8 @@ Configure with coc.nvim or other LSP clients:
 {
   "languageserver": {
     "tycl": {
-      "command": "ros",
-      "args": ["run", "roswell/tycl.ros", "lsp"],
+      "command": "tycl",
+      "args": ["lsp"],
       "filetypes": ["tycl", "lisp"],
       "rootPatterns": ["tycl.asd", ".git"]
     }
@@ -322,6 +319,25 @@ Configure with coc.nvim or other LSP clients:
 - **Go to Definition**: Navigate to symbol definitions
 - **Find References**: Locate all uses of a symbol
 - **Document Symbols**: Outline view of file structure
+
+#### Startup Behavior
+
+When the LSP server starts, it performs the following initialization:
+
+1. **`.asd` file discovery**: Scans the workspace root for `.asd` files
+2. **Full transpilation**: If `.asd` files with `tycl-system` definitions are found, all `.tycl` files in those systems are transpiled to generate `tycl-types.tmp`. This runs unconditionally regardless of whether `tycl-types.tmp` already exists, ensuring type information is always up-to-date.
+3. **Type information loading**: Loads `tycl-types.tmp` files from the workspace to populate the type cache
+
+This ensures that LSP features (hover, completion, diagnostics) have complete type information available from the first interaction.
+
+#### Diagnostics Debounce
+
+By default, diagnostics are debounced with a 500ms delay to avoid unnecessary CPU load during continuous typing. The debounce delay can be configured via the editor client:
+
+- **VS Code**: `tycl.diagnostics.debounceMs` setting (0-5000ms, default: 500)
+- **Other clients**: Send `diagnosticDebounceMs` in `initializationOptions`
+
+Setting the value to `0` disables debouncing and computes diagnostics immediately on every change. File save always triggers diagnostics immediately regardless of the debounce setting.
 
 See [docs/lsp-server.md](docs/lsp-server.md) for implementation details.
 

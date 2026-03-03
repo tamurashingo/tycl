@@ -34,10 +34,10 @@ export function activate(context: ExtensionContext) {
 
   // If serverPath is specified, adjust the command to use absolute path
   if (serverPath) {
-    const tyClScript = path.join(serverPath, 'tycl.ros');
-    outputChannel.appendLine(`[TyCL] Cheking for script: ${tyClScript}`);
+    const tyClScript = path.join(serverPath, 'roswell', 'tycl.ros');
+    outputChannel.appendLine(`[TyCL] Checking for script: ${tyClScript}`);
     if (!fs.existsSync(tyClScript)) {
-      const errorMsg = `TyCL LSP: tycl.ros not found at ${tyClScript}. Please check tycl.lsp.serverPath setting.`;
+      const errorMsg = `TyCL LSP: tycl.ros not found at ${tyClScript}. Please check tycl.lsp.serverPath setting (should be the TyCL project root directory).`;
       outputChannel.appendLine(`[TyCL] ERROR: ${errorMsg}`);
       window.showErrorMessage(errorMsg);
       return;
@@ -59,10 +59,16 @@ export function activate(context: ExtensionContext) {
     debug: serverExecutable
   };
 
+  const debounceMs = config.get<number>('diagnostics.debounceMs', 500);
+  outputChannel.appendLine(`[TyCL] Diagnostics debounce: ${debounceMs}ms`);
+
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: 'file', language: 'tycl' }],
     synchronize: {
       fileEvents: workspace.createFileSystemWatcher('**/*.tycl')
+    },
+    initializationOptions: {
+      diagnosticDebounceMs: debounceMs
     },
     outputChannel: outputChannel,
     traceOutputChannel: outputChannel

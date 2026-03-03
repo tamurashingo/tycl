@@ -2,7 +2,7 @@
   "name": "tycl",
   "displayName": "TyCL Language Support",
   "description": "Language support for TyCL (Typed Common Lisp) with LSP integration",
-  "version": "0.1.0",
+  "version": "0.1.1-20260303000001",
   "publisher": "tycl",
   "license": "MIT",
   "repository": {
@@ -80,6 +80,13 @@
           ],
           "description": "Arguments for TyCL LSP server"
         },
+        "tycl.diagnostics.debounceMs": {
+          "type": "number",
+          "default": 500,
+          "minimum": 0,
+          "maximum": 5000,
+          "description": "Delay in milliseconds before computing diagnostics after a change. Set to 0 for immediate."
+        },
         "tycl.lsp.trace.server": {
           "type": "string",
           "enum": [
@@ -104,5 +111,6 @@
   },
   "dependencies": {
     "vscode-languageclient": "^8.1.0"
-  }
+  },
+  "packageManager": "npm@10.5.2+sha1.0e9b72afaf5ecf8249b2abb4b7417db6739c1475"
 }

@@ -363,7 +363,7 @@ Content-Length: 95\r\n
   :config
   (lsp-register-client
    (make-lsp-client
-    :new-connection (lsp-stdio-connection '("ros" "run" "roswell/tycl-lsp.ros"))
+    :new-connection (lsp-stdio-connection '("ros" "roswell/tycl-lsp.ros"))
     :major-modes '(lisp-mode)
     :server-id 'tycl-lsp
     :activation-fn (lambda (filename &optional _)

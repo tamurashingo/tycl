@@ -38,6 +38,8 @@
 (defun extract-defun-type (form)
   "Extract type information from defun form
    (defun [name return-type] (params...) body...)"
+  (when (< (length form) 3)
+    (return-from extract-defun-type nil))
   (let* ((name-spec (second form))
          (params-spec (third form))
          (name (if (tycl/annotation:type-annotation-p name-spec)
@@ -47,12 +49,13 @@
                           (tycl/annotation:annotation-type name-spec)
                           :t))
          (params (extract-params-types params-spec)))
-    (make-function-type-info
-     *current-package*
-     (string-upcase (symbol-name name))
-     params
-     return-type
-     :source-location *current-file*)))
+    (when (and name (symbolp name))
+      (make-function-type-info
+       *current-package*
+       (string-upcase (symbol-name name))
+       params
+       return-type
+       :source-location *current-file*))))
 
 (defun extract-params-types (params-spec)
   "Extract parameter types from parameter list
@@ -77,6 +80,8 @@
 (defun extract-defvar-type (form)
   "Extract type information from defvar form
    (defvar [*name* type] value)"
+  (when (< (length form) 2)
+    (return-from extract-defvar-type nil))
   (let* ((name-spec (second form))
          (name (if (tycl/annotation:type-annotation-p name-spec)
                    (tycl/annotation:annotation-symbol name-spec)
@@ -84,11 +89,12 @@
          (type (if (tycl/annotation:type-annotation-p name-spec)
                    (tycl/annotation:annotation-type name-spec)
                    :t)))
-    (make-value-type-info
-     *current-package*
-     (string-upcase (symbol-name name))
-     type
-     :source-location *current-file*)))
+    (when (and name (symbolp name))
+      (make-value-type-info
+       *current-package*
+       (string-upcase (symbol-name name))
+       type
+       :source-location *current-file*))))
 
 (defun extract-defparameter-type (form)
   "Extract type information from defparameter form"
@@ -103,16 +109,19 @@
 (defun extract-defclass-type (form)
   "Extract type information from defclass form
    (defclass name (supers...) (slots...))"
+  (when (< (length form) 4)
+    (return-from extract-defclass-type nil))
   (let* ((name (second form))
          (supers (third form))
          (slots-spec (fourth form))
          (slots (extract-slots-types slots-spec)))
-    (make-class-type-info
-     *current-package*
-     (string-upcase (symbol-name name))
-     slots
-     (mapcar (lambda (s) (string-upcase (symbol-name s))) supers)
-     :source-location *current-file*)))
+    (when (and name (symbolp name))
+      (make-class-type-info
+       *current-package*
+       (string-upcase (symbol-name name))
+       slots
+       (mapcar (lambda (s) (string-upcase (symbol-name s))) supers)
+       :source-location *current-file*))))
 
 (defun extract-slots-types (slots-spec)
   "Extract slot types from defclass slots
@@ -133,6 +142,8 @@
 (defun extract-defmethod-type (form)
   "Extract type information from defmethod form
    (defmethod [name return-type] (params...) body...)"
+  (when (< (length form) 3)
+    (return-from extract-defmethod-type nil))
   (let* ((name-spec (second form))
          (params-spec (third form))
          (name (if (tycl/annotation:type-annotation-p name-spec)
@@ -143,13 +154,14 @@
                           :t))
          (params (extract-params-types params-spec))
          (specializers (extract-method-specializers params-spec)))
-    (make-method-type-info
-     *current-package*
-     (string-upcase (symbol-name name))
-     params
-     return-type
-     specializers
-     :source-location *current-file*)))
+    (when (and name (symbolp name))
+      (make-method-type-info
+       *current-package*
+       (string-upcase (symbol-name name))
+       params
+       return-type
+       specializers
+       :source-location *current-file*))))
 
 (defun extract-method-specializers (params-spec)
   "Extract method specializers from parameter list"
@@ -336,7 +348,7 @@
        ;; Load the file
        (handler-case
            (progn
-             (format t "~&; Loading TyCL hooks from ~A~%" canonical-path)
+             (format *error-output* "~&; Loading TyCL hooks from ~A~%" canonical-path)
              (load canonical-path)
              (push canonical-path *loaded-hook-files*)
              t)

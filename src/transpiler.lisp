@@ -65,36 +65,39 @@
           (terpri out)
           (terpri out))))))
 
-(defun transpile-file (input-file &optional output-file &key extract-types save-types)
+(defun transpile-file (input-file &optional output-file &key extract-types save-types
+                                                              (output *standard-output*))
   "Transpile a .tycl file to a .lisp file.
    If OUTPUT-FILE is not specified, uses INPUT-FILE with .lisp extension.
    If EXTRACT-TYPES is T, extracts type information during transpilation.
    If SAVE-TYPES is T, saves type information to .tycl-types file.
+   OUTPUT is the stream for progress messages (default: *standard-output*).
    Returns the output file path."
-  (let* ((output (or output-file
-                     (make-pathname :type "lisp"
-                                    :defaults input-file)))
+  (let* ((lisp-output (or output-file
+                          (make-pathname :type "lisp"
+                                         :defaults input-file)))
          (tycl:*current-file* (namestring input-file))
          (tycl:*current-package* "COMMON-LISP-USER"))
     ;; Load hook configuration if exists
     (when extract-types
       (tycl:find-and-load-hooks (uiop:pathname-directory-pathname input-file)))
-    
+
     ;; Transpile
     (let* ((tycl-source (uiop:read-file-string input-file))
            (cl-source (transpile-string tycl-source :extract-types extract-types)))
-      (ensure-directories-exist output)
-      (with-open-file (out output
+      (ensure-directories-exist lisp-output)
+      (with-open-file (out lisp-output
                            :direction :output
                            :if-exists :supersede
                            :if-does-not-exist :create)
         (write-string cl-source out))
-      (format t "~&Transpiled: ~A -> ~A~%" input-file output)
-      
+      (format output "~&Transpiled: ~A -> ~A~%" input-file lisp-output)
+
       ;; Save type information if requested (project-level tycl-types.tmp in cwd)
       (when (and extract-types save-types)
         (tycl:save-project-types
          (make-pathname :name "tycl-types" :type "tmp"
-                        :defaults *default-pathname-defaults*)))
-      
-      output)))
+                        :defaults *default-pathname-defaults*)
+         :output output))
+
+      lisp-output)))

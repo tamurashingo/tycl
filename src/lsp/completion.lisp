@@ -109,7 +109,11 @@
         (let ((params (second type-spec))
               (return-type (third type-spec)))
           (format nil "(~{~A~^ ~}) -> ~A"
-                 (mapcar #'format-type-spec params)
+                 (mapcar (lambda (param)
+                           (format nil "[~A ~A]"
+                                   (getf param :name)
+                                   (format-type-spec (getf param :type))))
+                         params)
                  (format-type-spec return-type)))
         "function")))
 

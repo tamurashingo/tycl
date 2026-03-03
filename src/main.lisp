@@ -138,5 +138,5 @@
              :json-output json-output))
 
 ;; Package is ready
-(format t "~&TyCL transpiler loaded.~%")
-(format t "~&  Use (tycl:load-tycl \"file.tycl\") to load TyCL files.~%")
+(format *error-output* "~&TyCL transpiler loaded.~%")
+(format *error-output* "~&  Use (tycl:load-tycl \"file.tycl\") to load TyCL files.~%")

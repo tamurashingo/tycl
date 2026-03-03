@@ -159,11 +159,12 @@
             (ensure-directories-exist lisp-path)
             (tycl:transpile-file file-path lisp-path
                                  :extract-types t
-                                 :save-types nil)
+                                 :save-types nil
+                                 :output *error-output*)
             ;; Save project-level type info
             (let ((project-types (make-pathname :name "tycl-types" :type "tmp"
                                                 :defaults *default-pathname-defaults*)))
-              (tycl:save-project-types project-types)
+              (tycl:save-project-types project-types :output *error-output*)
               (when *debug-mode*
                 (format *error-output* "~%[ASD] Generated project types: ~A~%" project-types))
               project-types))
@@ -177,9 +178,10 @@
 ;;; Transpile all files in .asd
 ;;; ============================================================
 
-(defun transpile-all-in-asd (asd-path &key load-dependencies)
+(defun transpile-all-in-asd (asd-path &key load-dependencies (output *standard-output*))
   "Load a .asd file and transpile all tycl-file components in all tycl-systems.
    If LOAD-DEPENDENCIES is T, load each system's :depends-on systems before transpiling.
+   OUTPUT is the stream for progress messages (default: *standard-output*).
    Saves project-level tycl-types.tmp next to the .asd file after all files are transpiled.
    Returns the number of files transpiled."
   (let ((systems (load-asd-file asd-path))
@@ -191,7 +193,7 @@
             (handler-case
                 (asdf:load-system dep)
               (error (e)
-                (format *error-output* "~&Warning: Failed to load dependency ~A: ~A~%" dep e)))))
+                (format output "~&Warning: Failed to load dependency ~A: ~A~%" dep e)))))
         (labels ((process-component (component)
                    (cond
                      ((typep component 'tycl/asdf:tycl-file)
@@ -199,21 +201,22 @@
                              (output-dir (tycl/asdf::resolve-tycl-output-dir system))
                              (source-dir (asdf:system-source-directory system))
                              (relative (enough-namestring input source-dir))
-                             (output (if output-dir
-                                         (merge-pathnames
-                                          (make-pathname :type "lisp" :defaults relative)
-                                          output-dir)
-                                         (make-pathname :type "lisp" :defaults input))))
-                        (format t "~&Transpiling ~A -> ~A~%" input output)
+                             (lisp-output (if output-dir
+                                              (merge-pathnames
+                                               (make-pathname :type "lisp" :defaults relative)
+                                               output-dir)
+                                              (make-pathname :type "lisp" :defaults input))))
+                        (format output "~&Transpiling ~A -> ~A~%" input lisp-output)
                         (handler-case
                             (progn
-                              (ensure-directories-exist output)
-                              (tycl:transpile-file input output
+                              (ensure-directories-exist lisp-output)
+                              (tycl:transpile-file input lisp-output
                                                    :extract-types t
-                                                   :save-types nil)
+                                                   :save-types nil
+                                                   :output output)
                               (incf count))
                           (error (e)
-                            (format *error-output* "~&Error transpiling ~A: ~A~%" input e)))))
+                            (format output "~&Error transpiling ~A: ~A~%" input e)))))
                      ((typep component 'asdf:module)
                       (dolist (child (asdf:component-children component))
                         (process-component child))))))
@@ -221,25 +224,26 @@
     ;; Save project-level type information next to the .asd file
     (when (> count 0)
       (let ((project-types (tycl:generate-project-type-file-path asd-path)))
-        (tycl:save-project-types project-types)))
+        (tycl:save-project-types project-types :output output)))
     count))
 
 ;;; ============================================================
 ;;; Check all files in .asd
 ;;; ============================================================
 
-(defun check-all-in-asd (asd-path &key load-dependencies)
+(defun check-all-in-asd (asd-path &key load-dependencies (output *standard-output*))
   "Load a .asd file and type-check all tycl-file components in all tycl-systems.
    If LOAD-DEPENDENCIES is T, load each system's :depends-on systems before checking.
+   OUTPUT is the stream for progress messages (default: *standard-output*).
    Loads project-level tycl-types.tmp before checking so all type info is available.
    Returns two values: the number of files checked and the number of files with errors."
   ;; Load project type information before checking
   (let ((project-types (tycl:generate-project-type-file-path asd-path)))
     (when (probe-file project-types)
       (handler-case
-          (tycl:load-type-database project-types)
+          (tycl:load-type-database project-types :output output)
         (error (e)
-          (format *error-output* "~&Warning: Failed to load project types from ~A: ~A~%"
+          (format output "~&Warning: Failed to load project types from ~A: ~A~%"
                   project-types e)))))
   (let ((systems (load-asd-file asd-path))
         (checked 0)
@@ -252,19 +256,19 @@
             (handler-case
                 (asdf:load-system dep)
               (error (e)
-                (format *error-output* "~&Warning: Failed to load dependency ~A: ~A~%" dep e)))))
+                (format output "~&Warning: Failed to load dependency ~A: ~A~%" dep e)))))
         (labels ((process-component (component)
                    (cond
                      ((typep component 'tycl/asdf:tycl-file)
                       (let ((input (asdf:component-pathname component)))
-                        (format t "~&Checking ~A~%" input)
+                        (format output "~&Checking ~A~%" input)
                         (handler-case
                             (progn
                               (incf checked)
                               (unless (tycl:check-file input)
                                 (incf failed)))
                           (error (e)
-                            (format *error-output* "~&Error checking ~A: ~A~%" input e)
+                            (format output "~&Error checking ~A: ~A~%" input e)
                             (incf checked)
                             (incf failed)))))
                      ((typep component 'asdf:module)

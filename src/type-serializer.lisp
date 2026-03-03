@@ -105,16 +105,17 @@
           (terpri out)))))
   output-file)
 
-(defun save-project-types (output-file)
+(defun save-project-types (output-file &key (output *standard-output*))
   "Save project type information, merging with existing file if present.
-   Reads existing file first, then overwrites with merged data."
+   Reads existing file first, then overwrites with merged data.
+   OUTPUT is the stream for progress messages (default: *standard-output*)."
   (when (probe-file output-file)
     (handler-case
-        (load-type-database output-file)
+        (load-type-database output-file :output output)
       (error (e)
         (warn "Failed to load existing type database from ~A: ~A" output-file e))))
   (write-project-type-database output-file)
-  (format t "~&; Project type information saved to ~A~%" output-file)
+  (format output "~&; Project type information saved to ~A~%" output-file)
   output-file)
 
 ;;; Deserialization
@@ -152,8 +153,9 @@
        (warn "Unknown type info kind: ~A" kind)
        nil))))
 
-(defun load-type-database (type-file)
-  "Load type database from a project type file (supports multiple S-expressions)"
+(defun load-type-database (type-file &key (output *standard-output*))
+  "Load type database from a project type file (supports multiple S-expressions).
+   OUTPUT is the stream for progress messages (default: *standard-output*)."
   (when (probe-file type-file)
     (with-open-file (in type-file :direction :input)
       (loop for data = (read in nil nil)
@@ -169,5 +171,5 @@
                            version (db-version *type-database*)))
                    (dolist (entry entries)
                      (deserialize-type-info package entry)))))
-      (format t "~&; Loaded type information from ~A~%" type-file)
+      (format output "~&; Loaded type information from ~A~%" type-file)
       t)))

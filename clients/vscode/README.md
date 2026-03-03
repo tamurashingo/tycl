@@ -13,22 +13,22 @@ Visual Studio Code extension for TyCL (Typed Common Lisp) with LSP support.
   - Find references
   - Symbol renaming
 
+## Prerequisites
+
+- TyCL LSP server installed (`ros install tamurashingo/tycl`)
+
 ## Installation
 
 ### From Source
 
-1. **Prerequisites**:
-   - Node.js 18+ and npm
-   - TyCL LSP server (see main TyCL README)
-
-2. **Build the extension**:
+1. **Build the extension**:
    ```bash
    cd clients/vscode
    npm install
    npm run compile
    ```
 
-3. **Install in VS Code**:
+2. **Install in VS Code**:
    ```bash
    npm run package  # Creates tycl-0.1.0.vsix
    code --install-extension tycl-0.1.0.vsix
@@ -42,20 +42,47 @@ code --install-extension tycl.tycl
 
 ## Configuration
 
-Open VS Code settings (File > Preferences > Settings) and search for "TyCL":
+Open VS Code settings (`File > Preferences > Settings`) and search for "TyCL", or edit `.vscode/settings.json` directly.
 
-### Basic Settings
+### Settings Reference
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `tycl.lsp.enabled` | `true` | Enable/disable TyCL Language Server |
-| `tycl.lsp.executable` | `"tycl"` | TyCL executable (installed via `ros install`) |
-| `tycl.lsp.serverPath` | `""` | Path to TyCL source directory (for development) |
-| `tycl.lsp.trace.server` | `"off"` | LSP communication tracing |
+#### LSP Server
 
-### Example: Using Local TyCL Installation
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `tycl.lsp.enabled` | boolean | `true` | Enable/disable TyCL Language Server |
+| `tycl.lsp.executable` | string | `"tycl"` | TyCL executable name or path (installed via `ros install`) |
+| `tycl.lsp.serverPath` | string | `""` | Path to TyCL source directory (for development only). When set, uses `roswell/tycl.ros` under this directory instead of the installed `tycl` command |
+| `tycl.lsp.args` | string[] | `["lsp"]` | Arguments for TyCL LSP server. To enable Swank, add `"--swank"` and optionally a port number |
+| `tycl.lsp.trace.server` | string | `"off"` | LSP communication tracing (`"off"`, `"messages"`, `"verbose"`) |
 
-If you're running TyCL from source:
+#### Diagnostics
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `tycl.diagnostics.debounceMs` | number | `500` | Delay in milliseconds before computing diagnostics after a change. Set to `0` for immediate diagnostics. Range: 0-5000 |
+
+### Examples
+
+#### Basic setup (TyCL installed via `ros install`)
+
+```json
+{
+  "tycl.lsp.enabled": true
+}
+```
+
+#### Development with local TyCL source
+
+Set `tycl.lsp.serverPath` to the **TyCL project root directory** (the parent of the directory containing `roswell/tycl.ros`):
+
+```
+/home/user/projects/tycl/          <-- set this path
+├── roswell/
+│   └── tycl.ros
+├── src/
+└── ...
+```
 
 ```json
 {
@@ -63,13 +90,45 @@ If you're running TyCL from source:
 }
 ```
 
-This will use `/home/user/projects/tycl/roswell/tycl.ros` as the LSP server.
+This runs `ros /home/user/projects/tycl/roswell/tycl.ros lsp` instead of the installed `tycl` command.
 
-### Example: Custom TyCL Installation Path
+#### Custom executable path
 
 ```json
 {
   "tycl.lsp.executable": "/custom/path/to/tycl"
+}
+```
+
+#### Immediate diagnostics (no debounce)
+
+```json
+{
+  "tycl.diagnostics.debounceMs": 0
+}
+```
+
+#### Enable Swank server for REPL integration
+
+```json
+{
+  "tycl.lsp.args": ["lsp", "--swank"]
+}
+```
+
+With a custom port:
+
+```json
+{
+  "tycl.lsp.args": ["lsp", "--swank", "9999"]
+}
+```
+
+#### Enable verbose LSP tracing for debugging
+
+```json
+{
+  "tycl.lsp.trace.server": "verbose"
 }
 ```
 

@@ -8,7 +8,7 @@ Emacs major mode for TyCL (Typed Common Lisp) with LSP support.
 
 - Emacs 26.1 or later
 - `lsp-mode` package
-- TyCL LSP server (see main README)
+- TyCL LSP server (`ros install tamurashingo/tycl`)
 
 ### Using straight.el or package.el
 
@@ -40,17 +40,66 @@ Emacs major mode for TyCL (Typed Common Lisp) with LSP support.
 ;; (already configured via auto-mode-alist)
 ```
 
-#### Custom LSP Server Path
+#### Settings Reference
 
-If you're running TyCL from source (not installed system-wide):
+All settings can be customized via `M-x customize-group RET tycl RET` or by setting variables in your init file.
 
-```elisp
-(setq tycl-lsp-server-root-path "/path/to/tycl")
+##### LSP Server
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `tycl-lsp-server-command` | `'("tycl" "lsp")` | Command to start TyCL LSP server |
+| `tycl-lsp-server-root-path` | `nil` | Path to TyCL source directory (for development only). When set, uses `roswell/tycl.ros` under this directory instead of the installed `tycl` command |
+
+##### Diagnostics
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `tycl-diagnostics-debounce-ms` | `500` | Delay in milliseconds before computing diagnostics after a change. Set to `0` for immediate diagnostics |
+
+##### Swank Server
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `tycl-swank-enabled` | `nil` | If non-nil, start a Swank server alongside the LSP server |
+| `tycl-swank-port` | `4005` | Port number for the Swank server |
+
+#### Examples
+
+##### Development with local TyCL source
+
+Set `tycl-lsp-server-root-path` to the **TyCL project root directory** (the parent of the directory containing `roswell/tycl.ros`):
+
+```
+/home/user/projects/tycl/          <-- set this path
+├── roswell/
+│   └── tycl.ros
+├── src/
+└── ...
 ```
 
-This will use `/path/to/tycl/roswell/tycl.ros` as the LSP server for development.
+```elisp
+(setq tycl-lsp-server-root-path "/home/user/projects/tycl")
+```
 
-#### With use-package
+This runs `ros /home/user/projects/tycl/roswell/tycl.ros lsp` instead of the installed `tycl` command.
+
+##### Immediate diagnostics (no debounce)
+
+```elisp
+(setq tycl-diagnostics-debounce-ms 0)
+```
+
+##### Enable Swank server for SLIME REPL integration
+
+```elisp
+(setq tycl-swank-enabled t)
+(setq tycl-swank-port 4005)  ; default
+```
+
+When enabled, the LSP server process also starts a Swank server. Connect from SLIME with `M-x slime-connect RET localhost RET 4005`.
+
+##### With use-package
 
 ```elisp
 (use-package tycl-mode
@@ -58,7 +107,10 @@ This will use `/path/to/tycl/roswell/tycl.ros` as the LSP server for development
   :mode "\\.tycl\\'"
   :hook (tycl-mode . lsp-deferred)
   :custom
-  (tycl-lsp-server-root-path "/path/to/tycl"))
+  (tycl-lsp-server-root-path "/path/to/tycl")
+  (tycl-diagnostics-debounce-ms 500)
+  (tycl-swank-enabled t)
+  (tycl-swank-port 4005))
 ```
 
 ## Features
@@ -140,8 +192,8 @@ If the default command doesn't work, customize it:
 
 ```elisp
 (setq tycl-lsp-server-command '("tycl" "lsp"))
-;; Or for development with local source:
-(setq tycl-lsp-server-command '("ros" "run" "/full/path/to/tycl.ros" "lsp"))
+;; Or for development with local source (alternative to tycl-lsp-server-root-path):
+(setq tycl-lsp-server-command '("ros" "/full/path/to/roswell/tycl.ros" "lsp"))
 ```
 
 ### Syntax Highlighting Not Working

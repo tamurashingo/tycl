@@ -58,20 +58,35 @@
   (when *debug-mode*
     (format *error-output* "~%TyCL LSP Server starting...~%"))
   
+  ;; Reset pending diagnostics table
+  (clrhash *pending-diagnostics*)
+
   (loop
-    (let ((message (read-json-rpc-message input)))
-      (unless message
-        (return))
-      
-      (multiple-value-bind (jsonrpc id method params)
-          (parse-message message)
-        (declare (ignore jsonrpc))
-        
-        (when *debug-mode*
-          (format *error-output* "~%Method: ~A, ID: ~A~%" method id))
-        
-        (dispatch-message method params id output)
-        
-        ;; Exit if shutdown was handled
-        (when (and (string= method "exit"))
-          (return))))))
+    (let* ((timeout (compute-timeout-ms))
+           (message (read-json-rpc-message-with-timeout input timeout)))
+      (cond
+        ;; Handle timeout: process pending diagnostics and continue
+        ((eq message :timeout)
+         (process-pending-diagnostics output))
+
+        ;; Handle EOF
+        ((null message)
+         (return))
+
+        ;; Normal message
+        (t
+         (multiple-value-bind (jsonrpc id method params)
+             (parse-message message)
+           (declare (ignore jsonrpc))
+
+           (when *debug-mode*
+             (format *error-output* "~%Method: ~A, ID: ~A~%" method id))
+
+           (dispatch-message method params id output)
+
+           ;; Process any diagnostics that may have become due
+           (process-pending-diagnostics output)
+
+           ;; Exit if shutdown was handled
+           (when (string= method "exit")
+             (return))))))))
