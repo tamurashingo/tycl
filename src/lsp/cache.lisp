@@ -9,9 +9,10 @@
   "Root directory of the workspace")
 
 (defstruct type-info
-  kind        ; :function, :value, :class, :method
+  kind        ; :function, :value, :class, :method, :type-alias
   name        ; symbol name
   type-spec   ; type specification
+  type-params ; list of type parameter names for parametric aliases
   location)   ; file location (filename . line-number)
 
 (defun clear-cache ()
@@ -77,6 +78,8 @@
                                                              (getf props :superclasses)))
                                                       (:type-alias
                                                        (getf props :expanded-type)))
+                                          :type-params (when (eq kind :type-alias)
+                                                         (getf props :type-params))
                                           :location (cons (namestring filepath) 0))))
                                (when *debug-mode*
                                  (format *error-output* "~%[Cache]     Symbol: ~A (~A) type-spec: ~A~%"

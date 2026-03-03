@@ -76,7 +76,9 @@
                                           (class-superclasses type-info))))))
       (:type-alias
        (append base-info
-               `((:expanded-type . ,(type-to-json (alias-expanded-type type-info)))))))))
+               `((:expanded-type . ,(type-to-json (alias-expanded-type type-info)))
+                 ,@(when (alias-type-params type-info)
+                     `((:type-params . ,(alias-type-params type-info))))))))))
 
 (defun serialize-type-database-json ()
   "Serialize current type database to JSON-compatible structure"
@@ -315,7 +317,14 @@
     (:class
      (format nil "class ~a" (type-info-symbol type-info)))
     (:type-alias
-     (format nil "type ~A = ~A" (type-info-symbol type-info) (alias-expanded-type type-info)))))
+     (if (alias-type-params type-info)
+         (format nil "type ~A<~{~A~^, ~}> = ~A"
+                 (type-info-symbol type-info)
+                 (alias-type-params type-info)
+                 (alias-expanded-type type-info))
+         (format nil "type ~A = ~A"
+                 (type-info-symbol type-info)
+                 (alias-expanded-type type-info))))))
 
 (defun get-hover-info (symbol &optional package)
   "Get hover information for LSP hover request"
@@ -368,9 +377,14 @@
                                (getf slot :type)))
                       (class-slots type-info))))
       (:type-alias
-       (format s "```lisp~%(deftype-tycl ~A ~A)~%```"
-               (type-info-symbol type-info)
-               (alias-expanded-type type-info))))))
+       (if (alias-type-params type-info)
+           (format s "```lisp~%(deftype-tycl (~A ~{~A~^ ~}) ~A)~%```"
+                   (type-info-symbol type-info)
+                   (alias-type-params type-info)
+                   (alias-expanded-type type-info))
+           (format s "```lisp~%(deftype-tycl ~A ~A)~%```"
+                   (type-info-symbol type-info)
+                   (alias-expanded-type type-info)))))))
 
 ;;; ============================================================
 ;;; Diagnostic Support

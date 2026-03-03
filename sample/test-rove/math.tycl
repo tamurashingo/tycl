@@ -17,6 +17,13 @@
 (deftest safe-divide-test
   (ok (= (safe-divide 4 2) 2))
 
-  (ok (null (safe-divide 5 0)))) 
+  (ok (null (safe-divide 5 0))))
 
+(deftest get-range-test
+  (ok (equal (get-range 1 5) '(1 2 3 4 5)))
+  (ok (equal (get-range 3 3) '(3)))
+  (ok (null (get-range 5 1))))
 
+(deftest make-pair-test
+  (ok (equal (make-pair 42 "answer") '(42 "answer")))
+  (ok (equal (make-pair 0 "zero") '(0 "zero"))))

@@ -166,3 +166,108 @@
           "No deftype-tycl in output")
       (ok (search "defun get-user (id)" output)
           "Function should be transpiled normally"))))
+
+;;; ============================================================
+;;; Parametric Type Alias Tests
+;;; ============================================================
+
+;;; Parametric type definition extraction
+
+(deftest test-parametric-type-extraction
+  (testing "Parametric deftype-tycl extracts type-params correctly"
+    (tycl:clear-type-database)
+    (let ((tycl:*current-package* "TEST-PKG"))
+      (tycl:extract-type-from-form '(deftype-tycl (result T) (:list (T))))
+      (let ((info (tycl:lookup-type-info "TEST-PKG" "RESULT")))
+        (ok info "Parametric type alias should be registered")
+        (ok (eq :type-alias (tycl:type-info-kind info))
+            "Kind should be :type-alias")
+        (ok (equal '("T") (tycl:alias-type-params info))
+            "type-params should be (\"T\")")
+        (ok (equal '(:list (T)) (tycl:alias-expanded-type info))
+            "expanded-type should be (:list (T))")))))
+
+;;; Multiple type parameters
+
+(deftest test-multiple-type-params
+  (testing "Parametric type with multiple parameters"
+    (tycl:clear-type-database)
+    (let ((tycl:*current-package* "TEST-PKG"))
+      (tycl:extract-type-from-form '(deftype-tycl (pair A B) (:list (A B))))
+      (let ((info (tycl:lookup-type-info "TEST-PKG" "PAIR")))
+        (ok info "Parametric type alias should be registered")
+        (ok (equal '("A" "B") (tycl:alias-type-params info))
+            "type-params should be (\"A\" \"B\")")))))
+
+;;; Parametric type resolution
+
+(deftest test-parametric-type-resolution
+  (testing "Parametric type alias resolves with arguments"
+    (tycl:clear-type-database)
+    (let ((tycl:*current-package* "TEST-PKG"))
+      (tycl:extract-type-from-form '(deftype-tycl (result T) (:list (T))))
+      ;; (result :string) -> (:list (:string))
+      (let ((resolved (tycl:resolve-type-alias '(result :string) "TEST-PKG")))
+        (ok (equal '(:list (:string)) resolved)
+            "(result :string) should resolve to (:list (:string))"))
+      ;; (result :integer) -> (:list (:integer))
+      (let ((resolved (tycl:resolve-type-alias '(result :integer) "TEST-PKG")))
+        (ok (equal '(:list (:integer)) resolved)
+            "(result :integer) should resolve to (:list (:integer))")))))
+
+;;; Multiple parameter resolution
+
+(deftest test-multi-param-resolution
+  (testing "Multi-parameter type resolves correctly"
+    (tycl:clear-type-database)
+    (let ((tycl:*current-package* "TEST-PKG"))
+      (tycl:extract-type-from-form '(deftype-tycl (pair A B) (:list (A B))))
+      (let ((resolved (tycl:resolve-type-alias '(pair :integer :string) "TEST-PKG")))
+        (ok (equal '(:list (:integer :string)) resolved)
+            "(pair :integer :string) should resolve to (:list (:integer :string))")))))
+
+;;; Parametric type serialization round-trip
+
+(deftest test-parametric-serialization-round-trip
+  (testing "Parametric type alias survives serialize/deserialize round-trip"
+    (tycl:clear-type-database)
+    (let ((tycl:*current-package* "TEST-PKG"))
+      (tycl:extract-type-from-form '(deftype-tycl (result T) (:list (T))))
+      (let* ((info (tycl:lookup-type-info "TEST-PKG" "RESULT"))
+             (serialized (tycl::serialize-type-info info)))
+        (ok (equal '("T") (getf (rest serialized) :type-params))
+            "Serialized should contain :type-params")
+        ;; Deserialize
+        (tycl:clear-type-database)
+        (tycl::deserialize-type-info "TEST-PKG" serialized)
+        (let ((restored (tycl:lookup-type-info "TEST-PKG" "RESULT")))
+          (ok restored "Deserialized type info should exist")
+          (ok (equal '("T") (tycl:alias-type-params restored))
+              "Restored type-params should be (\"T\")")
+          (ok (equal '(:list (T)) (tycl:alias-expanded-type restored))
+              "Restored expanded-type should be (:list (T))"))))))
+
+;;; Parametric type transpilation (deftype-tycl stripped)
+
+(deftest test-parametric-type-transpile
+  (testing "Parametric deftype-tycl is stripped from transpiled output"
+    (let ((output (transpile-with-types
+                   "(deftype-tycl (result T) (:list (T)))
+                    (defun [get-users (result :string)] ()
+                      (list \"alice\" \"bob\"))")))
+      (ok (stringp output))
+      (ok (null (search "deftype-tycl" output))
+          "deftype-tycl should not appear in output")
+      (ok (search "defun get-users" output)
+          "defun should still appear in output"))))
+
+;;; Type checking with parametric type
+
+(deftest test-parametric-type-check
+  (testing "Type checking works with parametric type alias in function"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(deftype-tycl (result T) (:list (T)))
+          (defun [get-names (result :string)] () (list \"a\" \"b\"))")
+      (ok result "Type checking should pass with parametric alias usage")
+      (ok (null errors) "No errors expected"))))

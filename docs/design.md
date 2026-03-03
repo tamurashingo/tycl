@@ -209,20 +209,38 @@ Use type variables to define generic functions that work with multiple types.
 Define custom types using `deftype-tycl`:
 
 ```lisp
-;; Input
+;; Simple type alias
 (deftype-tycl userid :integer)
+(deftype-tycl nullable-num (:integer :null))
+(deftype-tycl numbers (:list (:integer)))
 
-(defun [get-user :string] ([id userid])
-  (fetch-user-from-db id))
-
-;; Output
-(defun get-user (id)
-  (fetch-user-from-db id))
+;; Parametric type aliases
+(deftype-tycl (result T) (:list (T)))
+(deftype-tycl (pair A B) (:list (A B)))
 ```
 
 **Syntax:**
-- `(deftype-tycl name type)` - Define a type alias
-- `(deftype-tycl name (base-type &rest params))` - Define with parameters
+- `(deftype-tycl name type)` - Define a simple type alias
+- `(deftype-tycl (name P1 P2 ...) type-expr)` - Define a parametric type alias
+
+**Usage examples:**
+
+```lisp
+;; Simple alias usage
+(defun [get-user :string] ([id userid])
+  (fetch-user-from-db id))
+
+;; Parametric alias usage - type parameters are substituted
+(defun [get-range (result :integer)] ([start :integer] [end :integer])
+  (loop for i from start to end collect i))
+;; (result :integer) resolves to (:list (:integer))
+
+(defun [make-pair (pair :integer :string)] ([n :integer] [label :string])
+  (list n label))
+;; (pair :integer :string) resolves to (:list (:integer :string))
+```
+
+Type aliases (including `deftype-tycl` forms) are stripped during transpilation and do not appear in the generated `.lisp` output.
 
 ---
 
@@ -446,9 +464,9 @@ See **lsp-server.md** for details.
 
 ### Phase 7: Advanced Type Features (Future Plans)
 
-- [ ] Type aliases (`deftype-alias`)
-  - [ ] Simple type aliases (e.g., `UserID` → `:integer`)
-  - [ ] Generic type aliases (e.g., `Result<T, E>`)
+- [x] Type aliases (`deftype-tycl`)
+  - [x] Simple type aliases (e.g., `userid` → `:integer`)
+  - [x] Parametric type aliases (e.g., `(result T)` → `(:list (T))`)
 - [ ] Type variables and polymorphism
   - [ ] Type variable syntax (`<T>`, `<A B>`)
   - [ ] Type constraints (e.g., `<T :number>`)
@@ -545,8 +563,8 @@ Initially, we tried a read macro approach to process types at compile time, but 
 ## 10. Future Outlook
 
 ### Short-Term (Next Milestone)
-- **Custom Type Registration**: Support for user-defined types
-- **Type Aliases**: Reusable type definitions (`deftype-alias`)
+- ~~**Custom Type Registration**: Support for user-defined types~~ ✅ Done (`deftype-tycl`)
+- ~~**Type Aliases**: Reusable type definitions~~ ✅ Done (simple and parametric aliases via `deftype-tycl`)
 - **Type Variables**: Polymorphic function definitions (`<T>`)
 
 ### Mid-Term

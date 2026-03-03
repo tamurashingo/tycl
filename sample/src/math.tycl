@@ -7,13 +7,19 @@
   (:export #:add
            #:multiply
            #:factorial
-           #:safe-divide))
+           #:safe-divide
+           #:get-range
+           #:make-pair))
 (in-package #:sample-project/math)
 
 ;;; Type aliases
 (deftype-tycl num :integer)
 (deftype-tycl nullable-num (:integer :null))
 (deftype-tycl numbers (:list (num)))
+
+;; Parametric type aliases
+(deftype-tycl (result T) (:list (T)))
+(deftype-tycl (pair A B) (:list (A B)))
 
 (defun [add num] ([x num] [y num])
   "Add two integers"
@@ -40,5 +46,13 @@
   (if (null numbers)
       0
       (/ (reduce #'+ numbers) (length numbers))))
+
+(defun [get-range (result num)] ([start num] [end num])
+  "Return a list of integers from start to end"
+  (loop for i from start to end collect i))
+
+(defun [make-pair (pair :integer :string)] ([n :integer] [label :string])
+  "Create a pair of a number and its label"
+  (list n label))
 
 ;;; vim: set filetype=lisp :

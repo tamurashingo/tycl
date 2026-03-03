@@ -143,8 +143,18 @@
   "Validate deftype-tycl form syntax"
   (when (< (length form) 3)
     (error "deftype-tycl requires name and type"))
-  (unless (and (symbolp (second form)) (not (keywordp (second form))))
-    (error "deftype-tycl name must be a non-keyword symbol")))
+  (let ((name-spec (second form)))
+    (cond
+      ;; Parametric: (deftype-tycl (result T) (:list (T)))
+      ((consp name-spec)
+       (unless (and (symbolp (car name-spec))
+                    (not (keywordp (car name-spec)))
+                    (every #'symbolp (cdr name-spec)))
+         (error "deftype-tycl parameterized form must be (name param...)")))
+      ;; Simple: (deftype-tycl userid :integer)
+      (t
+       (unless (and (symbolp name-spec) (not (keywordp name-spec)))
+         (error "deftype-tycl name must be a non-keyword symbol"))))))
 
 (defun valid-type-p (type-spec)
   "Check if a type specification is valid"
@@ -161,8 +171,16 @@
          ;; Generic type like (:list (:integer))
          (and (member (car type-spec) tycl::*valid-types*)
               (every #'valid-type-p (cdr type-spec)))
-         ;; Union type like (:integer :string)
-         (every #'valid-type-p type-spec)))
+         ;; Union type or parametric alias application
+         (let* ((head (car type-spec))
+                (alias-name (when (symbolp head) (string-upcase (symbol-name head))))
+                (alias-expanded (when alias-name
+                                  (tycl:lookup-type-alias tycl:*current-package* alias-name))))
+           (if alias-expanded
+               ;; Parametric type application: check that args are valid
+               (every #'valid-type-p (cdr type-spec))
+               ;; Union type
+               (every #'valid-type-p type-spec)))))
     (t nil)))
 
 (defun make-diagnostic (line start-char end-char message severity)

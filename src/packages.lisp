@@ -82,6 +82,8 @@
            #:class-superclasses
            #:type-alias-info
            #:alias-expanded-type
+           #:alias-type-params
+           #:substitute-type-params
            #:type-database
            #:*valid-types*
            #:*type-database*

@@ -48,11 +48,47 @@
         (format nil "~(~A~)<~{~A~^, ~}>"
                (car type-spec)
                (mapcar #'format-type-spec (cdr type-spec))))
-       ;; Fallback: union of mixed types
+       ;; Fallback: check for parametric type alias application, else union
        (t
-        (format nil "~{~A~^ | ~}"
-               (mapcar #'format-type-spec type-spec)))))
+        (let ((resolved (resolve-parameterized-type type-spec)))
+          (if resolved
+              (format-type-spec resolved)
+              (format nil "~{~A~^ | ~}"
+                     (mapcar #'format-type-spec type-spec)))))))
     (t (format nil "~A" type-spec))))
+
+(defun resolve-parameterized-type (type-spec)
+  "If TYPE-SPEC is a parametric alias application like (result :string),
+   resolve it to the expanded type like (:list (:string)).
+   Returns the resolved type or NIL if not a parametric alias."
+  (when (and (consp type-spec) (symbolp (car type-spec)) (not (keywordp (car type-spec))))
+    (let* ((alias-name (string-upcase (symbol-name (car type-spec))))
+           (alias-info (loop for pkg-table being the hash-values of *type-info-cache*
+                             for info = (gethash alias-name pkg-table)
+                             when (and info
+                                       (eq (type-info-kind info) :type-alias)
+                                       (type-info-type-params info))
+                             return info)))
+      (when alias-info
+        (let* ((params (type-info-type-params alias-info))
+               (template (type-info-type-spec alias-info))
+               (args (cdr type-spec))
+               (bindings (mapcar #'cons params args)))
+          (substitute-display-type-params template bindings))))))
+
+(defun substitute-display-type-params (template bindings)
+  "Substitute type parameters in template for display purposes."
+  (cond
+    ((keywordp template) template)
+    ((symbolp template)
+     (let ((binding (assoc (string-upcase (symbol-name template)) bindings :test #'string=)))
+       (if binding (cdr binding) template)))
+    ((stringp template)
+     (let ((binding (assoc (string-upcase template) bindings :test #'string=)))
+       (if binding (cdr binding) template)))
+    ((consp template)
+     (mapcar (lambda (sub) (substitute-display-type-params sub bindings)) template))
+    (t template)))
 
 (defun format-function-signature (info)
   "Format function type signature for hover display"
@@ -85,9 +121,14 @@
 
 (defun format-type-alias-info (info)
   "Format type alias information for hover display"
-  (format nil "```commonlisp~%(deftype-tycl ~A ~A)~%```"
-          (type-info-name info)
-          (format-type-spec (type-info-type-spec info))))
+  (if (type-info-type-params info)
+      (format nil "```commonlisp~%(deftype-tycl (~A ~{~A~^ ~}) ~A)~%```"
+              (type-info-name info)
+              (type-info-type-params info)
+              (format-type-spec (type-info-type-spec info)))
+      (format nil "```commonlisp~%(deftype-tycl ~A ~A)~%```"
+              (type-info-name info)
+              (format-type-spec (type-info-type-spec info)))))
 
 (defun format-hover-content (info)
   "Format type information for hover display"

@@ -65,16 +65,29 @@ Data structures with type parameters:
 
 ### Type Aliases
 
-Reusable type definitions:
+Reusable type definitions with `deftype-tycl`:
 
 ```lisp
-(deftype-alias UserID :integer)
-(deftype-alias (Maybe <T>) (T :null))
-(deftype-alias (Result <T E>) (:ok T) (:error E))
+;; Simple alias
+(deftype-tycl userid :integer)
+(deftype-tycl nullable-num (:integer :null))
 
-(defun [find-user (Maybe User)] ([id UserID])
-  (lookup-database id))
+;; Parametric type aliases
+(deftype-tycl (result T) (:list (T)))
+(deftype-tycl (pair A B) (:list (A B)))
+
+;; Usage
+(defun [get-user :string] ([id userid])
+  (fetch-user-from-db id))
+
+(defun [get-range (result :integer)] ([start :integer] [end :integer])
+  (loop for i from start to end collect i))
+
+(defun [make-pair (pair :integer :string)] ([n :integer] [label :string])
+  (list n label))
 ```
+
+Type aliases are resolved during transpilation and do not appear in the generated `.lisp` output.
 
 ## Available Types
 

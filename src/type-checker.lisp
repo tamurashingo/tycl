@@ -433,10 +433,17 @@
          ;; deftype-tycl
          ((and (symbolp op) (string= (symbol-name op) "DEFTYPE-TYCL"))
           (when (>= (length form) 3)
-            (let ((expanded-type (third form)))
-              (unless (valid-type-p expanded-type)
-                (record-type-error form
-                                   (format nil "Invalid type in deftype-tycl: ~S" expanded-type)))))
+            (let* ((name-spec (second form))
+                   (expanded-type (third form)))
+              ;; Validate parametric form
+              (when (consp name-spec)
+                (unless (every #'symbolp name-spec)
+                  (record-type-error form "deftype-tycl parameters must be symbols")))
+              ;; Validate expanded type (skip for parametric since params are not registered types)
+              (unless (consp name-spec)
+                (unless (valid-type-p expanded-type)
+                  (record-type-error form
+                                     (format nil "Invalid type in deftype-tycl: ~S" expanded-type))))))
           env)
          ;; Other function calls (only if op is a symbol)
          ((symbolp op)

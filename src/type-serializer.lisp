@@ -31,7 +31,9 @@
     (type-alias-info
      `(:type-alias
        :symbol ,(type-info-symbol type-info)
-       :expanded-type ,(alias-expanded-type type-info)))))
+       :expanded-type ,(alias-expanded-type type-info)
+       ,@(when (alias-type-params type-info)
+           `(:type-params ,(alias-type-params type-info)))))))
 
 (defun serialize-package-types (package)
   "Serialize all type information for a package"
@@ -157,7 +159,8 @@
        (make-type-alias-info
         package
         (getf props :symbol)
-        (getf props :expanded-type)))
+        (getf props :expanded-type)
+        :type-params (getf props :type-params)))
       (otherwise
        (warn "Unknown type info kind: ~A" kind)
        nil))))

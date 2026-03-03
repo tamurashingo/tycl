@@ -28,4 +28,13 @@
   (is (= (sample-project/math:safe-divide 7 2) 3))
   (is (null (sample-project/math:safe-divide 5 0))))
 
+(test get-range-test
+  (is (equal (sample-project/math:get-range 1 5) '(1 2 3 4 5)))
+  (is (equal (sample-project/math:get-range 3 3) '(3)))
+  (is (null (sample-project/math:get-range 5 1))))
+
+(test make-pair-test
+  (is (equal (sample-project/math:make-pair 42 "answer") '(42 "answer")))
+  (is (equal (sample-project/math:make-pair 0 "zero") '(0 "zero"))))
+
 ;;; vim: set filetype=lisp :

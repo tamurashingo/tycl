@@ -7,7 +7,9 @@
                 #:add
                 #:multiply
                 #:factorial
-                #:safe-divide)
+                #:safe-divide
+                #:get-range
+                #:make-pair)
   (:import-from #:sample-project/string-utils
                 #:join-strings
                 #:repeat-string
@@ -42,6 +44,9 @@
     (format t "10 / 3 = ~A~%" div-result))
   (let (([div-zero (:integer :null)] (safe-divide 10 0)))
     (format t "10 / 0 = ~A~%" div-zero))
+  (format t "~%--- Parametric Types ---~%")
+  (format t "get-range 1..5: ~A~%" (get-range 1 5))
+  (format t "make-pair: ~A~%" (make-pair 42 "answer"))
   (format t "~%--- Strings ---~%")
   (format t "~A~%" (join-strings '("Hello" "TyCL" "World") ", "))
   (format t "~A~%" (repeat-string "ab" 3))

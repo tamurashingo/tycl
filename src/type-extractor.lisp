@@ -177,23 +177,39 @@
 ;;; deftype-tycl Type Extraction
 
 (defun extract-deftype-tycl (form)
-  "Extract type alias from (deftype-tycl name expanded-type) form.
+  "Extract type alias from deftype-tycl form.
    Examples:
      (deftype-tycl userid :integer)
-     (deftype-tycl string-list (:list :string))"
+     (deftype-tycl string-list (:list :string))
+     (deftype-tycl (result T) (:list (T)))
+     (deftype-tycl (pair A B) (:list (A B)))"
   (when (< (length form) 3)
     (warn "deftype-tycl requires name and type: ~S" form)
     (return-from extract-deftype-tycl nil))
-  (let ((name (second form))
+  (let ((name-spec (second form))
         (expanded-type (third form)))
-    (unless (and name (symbolp name) (not (keywordp name)))
-      (warn "deftype-tycl name must be a non-keyword symbol: ~S" name)
-      (return-from extract-deftype-tycl nil))
-    (make-type-alias-info
-     *current-package*
-     (string-upcase (symbol-name name))
-     expanded-type
-     :source-location *current-file*)))
+    (cond
+      ;; Parametric: (deftype-tycl (result T) (:list (T)))
+      ((and (consp name-spec) (symbolp (car name-spec)))
+       (let ((name (car name-spec))
+             (type-params (mapcar (lambda (p) (string-upcase (symbol-name p)))
+                                  (cdr name-spec))))
+         (make-type-alias-info
+          *current-package*
+          (string-upcase (symbol-name name))
+          expanded-type
+          :type-params type-params
+          :source-location *current-file*)))
+      ;; Simple: (deftype-tycl userid :integer)
+      ((and name-spec (symbolp name-spec) (not (keywordp name-spec)))
+       (make-type-alias-info
+        *current-package*
+        (string-upcase (symbol-name name-spec))
+        expanded-type
+        :source-location *current-file*))
+      (t
+       (warn "deftype-tycl name must be a non-keyword symbol or (name params...): ~S" name-spec)
+       nil))))
 
 ;;; Package Management
 

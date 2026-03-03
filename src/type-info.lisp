@@ -80,7 +80,11 @@
 (defclass type-alias-info (type-info)
   ((expanded-type :initarg :expanded-type
                   :accessor alias-expanded-type
-                  :documentation "The type this alias expands to"))
+                  :documentation "The type this alias expands to")
+   (type-params :initarg :type-params
+                :accessor alias-type-params
+                :initform nil
+                :documentation "List of type parameter names (strings), e.g. (\"T\") or (\"A\" \"B\")"))
   (:default-initargs :kind :type-alias)
   (:documentation "Type information for type aliases defined by deftype-tycl"))
 
@@ -197,7 +201,7 @@
 
 ;;; Type Alias Operations
 
-(defun make-type-alias-info (package symbol expanded-type &key source-location)
+(defun make-type-alias-info (package symbol expanded-type &key source-location type-params)
   "Create and register a type alias"
   (let* ((key (make-entry-key package symbol))
          (db *type-database*))
@@ -209,6 +213,7 @@
                     :package package
                     :symbol symbol
                     :expanded-type expanded-type
+                    :type-params type-params
                     :source-location source-location))))
 
 (defun lookup-type-alias (package alias-name)
@@ -216,9 +221,26 @@
   (let ((key (make-entry-key package alias-name)))
     (gethash key (db-type-aliases *type-database*))))
 
+(defun substitute-type-params (template bindings)
+  "Substitute type parameters in TEMPLATE with actual types from BINDINGS.
+   TEMPLATE: type template (e.g. (:list (T)))
+   BINDINGS: alist of (param-name-string . actual-type) (e.g. ((\"T\" . :string)))"
+  (cond
+    ((keywordp template) template)
+    ((symbolp template)
+     (let ((binding (assoc (string-upcase (symbol-name template)) bindings :test #'string=)))
+       (if binding (cdr binding) template)))
+    ((stringp template)
+     (let ((binding (assoc (string-upcase template) bindings :test #'string=)))
+       (if binding (cdr binding) template)))
+    ((consp template)
+     (mapcar (lambda (sub) (substitute-type-params sub bindings)) template))
+    (t template)))
+
 (defun resolve-type-alias (type-spec &optional (package *current-package*) (depth 0))
   "Resolve a type specification, expanding any type aliases recursively.
-   Handles recursive aliases with depth limit to prevent infinite loops."
+   Handles recursive aliases with depth limit to prevent infinite loops.
+   Also handles parametric type application: (result :string) -> (:list (:string))."
   (when (> depth 50)
     (warn "Type alias resolution depth limit reached for ~S" type-spec)
     (return-from resolve-type-alias type-spec))
@@ -237,11 +259,31 @@
        (if expanded
            (resolve-type-alias expanded package (1+ depth))
            type-spec)))
-    ;; Composite type: resolve each element
+    ;; Composite type: check for parametric type application first
     ((consp type-spec)
-     (cons (resolve-type-alias (car type-spec) package depth)
-           (mapcar (lambda (sub) (resolve-type-alias sub package depth))
-                   (cdr type-spec))))
+     (let* ((head (car type-spec))
+            (head-name (cond ((symbolp head) (string-upcase (symbol-name head)))
+                             ((stringp head) (string-upcase head))
+                             (t nil)))
+            (alias-info (when head-name
+                          (let ((key (make-entry-key package head-name)))
+                            (gethash key (db-entries *type-database*))))))
+       (if (and alias-info
+                (typep alias-info 'type-alias-info)
+                (alias-type-params alias-info))
+           ;; Parametric type application: bind params and expand
+           (let* ((params (alias-type-params alias-info))
+                  (args (cdr type-spec))
+                  (bindings (mapcar #'cons params
+                                    (mapcar (lambda (a) (resolve-type-alias a package depth))
+                                            args))))
+             (resolve-type-alias
+              (substitute-type-params (alias-expanded-type alias-info) bindings)
+              package (1+ depth)))
+           ;; Normal composite type: resolve each element
+           (cons (resolve-type-alias (car type-spec) package depth)
+                 (mapcar (lambda (sub) (resolve-type-alias sub package depth))
+                         (cdr type-spec))))))
     ;; Anything else: return as-is
     (t type-spec)))
 
