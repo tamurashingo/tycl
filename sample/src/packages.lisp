@@ -19,11 +19,21 @@
            #:*version*
            #:*max-items*))
 
+(defpackage #:sample-project/collections
+  (:use #:cl)
+  (:export #:identity-fn
+           #:wrap
+           #:first-or-default
+           #:swap-pair
+           #:apply-twice
+           #:zip-lists))
+
 (defpackage #:sample-project/main
   (:use #:cl
         #:sample-project/math
         #:sample-project/string-utils
-        #:sample-project/config)
+        #:sample-project/config
+        #:sample-project/collections)
   (:export #:format-result
            #:describe-app
            #:run))

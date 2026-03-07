@@ -53,7 +53,9 @@
                                       `((:name . ,(getf param :name))
                                         (:type . ,(type-to-json (getf param :type)))))
                                     (function-params type-info)))
-                 (:return . ,(type-to-json (function-return-type type-info))))))
+                 (:return . ,(type-to-json (function-return-type type-info)))
+                 ,@(when (function-type-params type-info)
+                     `((:type-params . ,(function-type-params type-info)))))))
       
       (:method
        (append base-info
@@ -303,14 +305,17 @@
      (format nil "~a" (value-type-spec type-info)))
     
     (:function
-     (format nil "(~{~a~^ ~}) → ~a"
-             (mapcar (lambda (p) (getf p :type)) 
+     (format nil "~A(~{~a~^ ~}) → ~a"
+             (if (function-type-params type-info)
+                 (format nil "<~{~A~^, ~}>" (function-type-params type-info))
+                 "")
+             (mapcar (lambda (p) (getf p :type))
                     (function-params type-info))
              (function-return-type type-info)))
-    
+
     (:method
      (format nil "(~{~a~^ ~}) → ~a"
-             (mapcar (lambda (p) (getf p :type)) 
+             (mapcar (lambda (p) (getf p :type))
                     (function-params type-info))
              (function-return-type type-info)))
     
@@ -346,10 +351,17 @@
       
       (:function
        (format s "```lisp~%")
-       (format s "(defun ~a (~{~a~^ ~})~%" 
-               (type-info-symbol type-info)
-               (mapcar (lambda (p) (getf p :name))
-                      (function-params type-info)))
+       (if (function-type-params type-info)
+           (format s "(defun [~a <~{~A~^ ~}> ~a] (~{~a~^ ~})~%"
+                   (type-info-symbol type-info)
+                   (function-type-params type-info)
+                   (function-return-type type-info)
+                   (mapcar (lambda (p) (getf p :name))
+                          (function-params type-info)))
+           (format s "(defun ~a (~{~a~^ ~})~%"
+                   (type-info-symbol type-info)
+                   (mapcar (lambda (p) (getf p :name))
+                          (function-params type-info))))
        (format s "  ;; Returns: ~a~%" (function-return-type type-info))
        (format s "  ...)~%```"))
       

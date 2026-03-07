@@ -16,7 +16,9 @@
      `(:function
        :symbol ,(type-info-symbol type-info)
        :params ,(function-params type-info)
-       :return ,(function-return-type type-info)))
+       :return ,(function-return-type type-info)
+       ,@(when (function-type-params type-info)
+           `(:type-params ,(function-type-params type-info)))))
     (method-type-info
      `(:method
        :symbol ,(type-info-symbol type-info)
@@ -141,7 +143,8 @@
         package
         (getf props :symbol)
         (getf props :params)
-        (getf props :return)))
+        (getf props :return)
+        :type-params (getf props :type-params)))
       (:method
        (make-method-type-info
         package

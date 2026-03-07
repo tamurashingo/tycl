@@ -1,0 +1,46 @@
+;;; -*- mode: lisp -*-
+;;;; Sample Project - Collection Utilities (TyCL)
+;;;; Demonstrates type variables and polymorphism with <T>, <A B>
+
+(in-package #:cl-user)
+(defpackage #:sample-project/collections
+  (:use #:cl)
+  (:export #:identity-fn
+           #:wrap
+           #:first-or-default
+           #:swap-pair
+           #:apply-twice
+           #:zip-lists))
+(in-package #:sample-project/collections)
+
+;;; Single type variable
+
+(defun [identity-fn <T> T] ([x T])
+  "Return x unchanged (polymorphic identity)"
+  x)
+
+(defun [wrap <T> (:list T)] ([x T])
+  "Wrap a value in a single-element list"
+  (list x))
+
+(defun [first-or-default <T> T] ([lst (:list T)] [default T])
+  "Return the first element of lst, or default if lst is empty"
+  (if lst
+      (first lst)
+      default))
+
+(defun [apply-twice <T> T] ([f :function] [x T])
+  "Apply function f to x twice: f(f(x))"
+  (funcall f (funcall f x)))
+
+;;; Multiple type variables
+
+(defun [swap-pair <A B> (:cons B A)] ([p (:cons A B)])
+  "Swap the car and cdr of a cons pair"
+  (cons (cdr p) (car p)))
+
+(defun [zip-lists <A B> (:list (:cons A B))] ([as (:list A)] [bs (:list B)])
+  "Zip two lists into a list of cons pairs"
+  (mapcar #'cons as bs))
+
+;;; vim: set filetype=lisp :

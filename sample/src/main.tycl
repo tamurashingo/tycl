@@ -14,6 +14,13 @@
                 #:join-strings
                 #:repeat-string
                 #:truncate-string)
+  (:import-from #:sample-project/collections
+                #:identity-fn
+                #:wrap
+                #:first-or-default
+                #:swap-pair
+                #:apply-twice
+                #:zip-lists)
   (:import-from #:sample-project/config
                 #:*app-name*
                 #:*version*
@@ -47,6 +54,15 @@
   (format t "~%--- Parametric Types ---~%")
   (format t "get-range 1..5: ~A~%" (get-range 1 5))
   (format t "make-pair: ~A~%" (make-pair 42 "answer"))
+  (format t "~%--- Collections (Type Variables) ---~%")
+  (format t "identity-fn 42: ~A~%" (identity-fn 42))
+  (format t "identity-fn \"hello\": ~A~%" (identity-fn "hello"))
+  (format t "wrap 99: ~A~%" (wrap 99))
+  (format t "first-or-default '(10 20) 0: ~A~%" (first-or-default '(10 20) 0))
+  (format t "first-or-default nil 0: ~A~%" (first-or-default nil 0))
+  (format t "swap-pair (1 . \"a\"): ~A~%" (swap-pair (cons 1 "a")))
+  (format t "apply-twice #'1+ 5: ~A~%" (apply-twice #'1+ 5))
+  (format t "zip-lists: ~A~%" (zip-lists '(1 2 3) '("a" "b" "c")))
   (format t "~%--- Strings ---~%")
   (format t "~A~%" (join-strings '("Hello" "TyCL" "World") ", "))
   (format t "~A~%" (repeat-string "ab" 3))

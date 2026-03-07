@@ -117,12 +117,14 @@
 
 (defun format-function-detail (info)
   "Format function detail for completion"
-  (let ((type-spec (type-info-type-spec info)))
+  (let ((type-spec (type-info-type-spec info))
+        (tp (type-info-type-params info)))
     (if (and (consp type-spec)
             (eq (car type-spec) :function))
         (let ((params (second type-spec))
               (return-type (third type-spec)))
-          (format nil "(~{~A~^ ~}) -> ~A"
+          (format nil "~A(~{~A~^ ~}) -> ~A"
+                 (if tp (format nil "<~{~A~^, ~}>" tp) "")
                  (mapcar (lambda (param)
                            (format nil "[~A ~A]"
                                    (getf param :name)

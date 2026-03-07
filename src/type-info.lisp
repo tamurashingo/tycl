@@ -44,7 +44,12 @@
    (return-type :initarg :return-type
                 :accessor function-return-type
                 :initform :t
-                :documentation "Return type specification"))
+                :documentation "Return type specification")
+   (type-params :initarg :type-params
+                :accessor function-type-params
+                :initform nil
+                :type list
+                :documentation "List of type variable names (strings), e.g. (\"T\") or (\"A\" \"B\")"))
   (:default-initargs :kind :function)
   (:documentation "Type information for functions"))
 
@@ -168,7 +173,7 @@
                   :type-spec type-spec
                   :source-location source-location)))
 
-(defun make-function-type-info (package symbol params return-type &key source-location)
+(defun make-function-type-info (package symbol params return-type &key source-location type-params)
   "Create and register a function type info"
   (register-type-info
    (make-instance 'function-type-info
@@ -176,6 +181,7 @@
                   :symbol symbol
                   :params params
                   :return-type return-type
+                  :type-params type-params
                   :source-location source-location)))
 
 (defun make-method-type-info (package symbol params return-type specializers &key source-location)

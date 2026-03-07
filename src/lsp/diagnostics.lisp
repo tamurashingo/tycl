@@ -2,6 +2,9 @@
 
 ;;; Diagnostics - Syntax and Type Checking
 
+(defvar *current-type-vars* nil
+  "List of type variable names (strings) currently in scope for validation")
+
 (defun check-syntax (text)
   "Check syntax of TyCL code and return diagnostics"
   (let ((diagnostics '())
@@ -161,11 +164,13 @@
   (cond
     ((keywordp type-spec)
      (member type-spec tycl::*valid-types*))
-    ;; Non-keyword symbol: check if it's a type alias
+    ;; Non-keyword symbol: check if it's a type variable, type alias, or class
     ((symbolp type-spec)
-     (not (null (tycl:lookup-type-alias
-                 tycl:*current-package*
-                 (string-upcase (symbol-name type-spec))))))
+     (let ((name (string-upcase (symbol-name type-spec))))
+       (or (member name *current-type-vars* :test #'string=)
+           (not (null (tycl:lookup-type-alias
+                       tycl:*current-package*
+                       name))))))
     ((consp type-spec)
      (if (keywordp (car type-spec))
          ;; Generic type like (:list (:integer))

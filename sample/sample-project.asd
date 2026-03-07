@@ -24,6 +24,7 @@
                 :components
                 ((:tycl-file "math")
                  (:tycl-file "string-utils")
+                 (:tycl-file "collections")
                  (:file "config")
                  (:tycl-file "main"))))
   :in-order-to ((test-op (test-op "sample-project/test-rove"))))
@@ -39,7 +40,8 @@
                 :components
                 ((:tycl-file "config")
                  (:tycl-file "math")
-                 (:tycl-file "string-utils"))))
+                 (:tycl-file "string-utils")
+                 (:tycl-file "collections"))))
   :perform (test-op (op c)
              (uiop:symbol-call :rove :run c)))
 
@@ -56,6 +58,7 @@
                 ((:file "packages")
                  (:tycl-file "math")
                  (:tycl-file "string-utils")
+                 (:tycl-file "collections")
                  (:file "config"))))
   :perform (test-op (op c)
              (declare (ignore op c))

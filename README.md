@@ -63,6 +63,34 @@ Data structures with type parameters:
   ...)
 ```
 
+### Type Variables and Polymorphism
+
+Define generic functions with type variables using `<T>` notation:
+
+```lisp
+;; Single type variable
+(defun [identity <T> T] ([x T])
+  x)
+;; => (defun identity (x) x)
+
+;; Compound return type using type variable
+(defun [wrap <T> (:list (T))] ([x T])
+  (list x))
+;; => (defun wrap (x) (list x))
+
+;; Multiple type variables
+(defun [swap-pair <A B> (:cons B A)] ([p (:cons A B)])
+  (cons (cdr p) (car p)))
+;; => (defun swap-pair (p) (cons (cdr p) (car p)))
+
+;; Type variable in parameters
+(defun [first-or-default <T> T] ([lst (:list T)] [default T])
+  (if lst (first lst) default))
+;; => (defun first-or-default (lst default) (if lst (first lst) default))
+```
+
+The `<...>` notation is only active inside `[...]` brackets. Outside brackets, `<` and `>` remain normal symbols, so `(< a b)` works as expected.
+
 ### Type Aliases
 
 Reusable type definitions with `deftype-tycl`:
@@ -88,6 +116,33 @@ Reusable type definitions with `deftype-tycl`:
 ```
 
 Type aliases are resolved during transpilation and do not appear in the generated `.lisp` output.
+
+### Type Casting (Type Assertion)
+
+The bracket notation `[expr type]` can also be used on arbitrary expressions to assert a type. This works like TypeScript's `as` operator — it tells the type checker to treat the expression as the specified type without affecting the generated code.
+
+```lisp
+(defun [foo :integer] () 3)
+(defun [hello :void] ([msg :string])
+  (format t "msg: ~A~%" msg))
+
+;; (hello (foo)) — type error: :integer is not compatible with :string
+;; Use a type cast to override:
+(hello [(foo) :string])
+;; => (hello (foo))
+```
+
+Any expression can be cast:
+
+```lisp
+;; Cast a function call result
+(process [(get-value) :string])
+
+;; Cast an arithmetic expression
+(display [(+ 1 2) :string])
+```
+
+**Note**: Type casts are unchecked — they override the type checker without runtime validation. Use them when you know the types are compatible at runtime but the type checker cannot infer this.
 
 ## Available Types
 
@@ -125,9 +180,6 @@ tycl help
 ```bash
 # Install with roswell (recommended)
 ros install tamurashingo/tycl
-
-# Or install from local source using make
-make install
 ```
 
 After installation, the `tycl` command is available directly in your PATH.

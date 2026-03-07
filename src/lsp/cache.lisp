@@ -78,7 +78,7 @@
                                                              (getf props :superclasses)))
                                                       (:type-alias
                                                        (getf props :expanded-type)))
-                                          :type-params (when (eq kind :type-alias)
+                                          :type-params (when (member kind '(:type-alias :function :method))
                                                          (getf props :type-params))
                                           :location (cons (namestring filepath) 0))))
                                (when *debug-mode*

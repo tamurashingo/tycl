@@ -1,0 +1,36 @@
+;;; -*- mode: lisp -*-
+(in-package #:sample-project/test-fiveam)
+
+(def-suite collections-suite
+  :in sample-project-suite
+  :description "Collections module tests (type variables)")
+
+(in-suite collections-suite)
+
+(test identity-fn-test
+  (is (= (sample-project/collections:identity-fn 42) 42))
+  (is (string= (sample-project/collections:identity-fn "hello") "hello"))
+  (is (equal (sample-project/collections:identity-fn '(1 2)) '(1 2))))
+
+(test wrap-test
+  (is (equal (sample-project/collections:wrap 42) '(42)))
+  (is (equal (sample-project/collections:wrap "hello") '("hello"))))
+
+(test first-or-default-test
+  (is (= (sample-project/collections:first-or-default '(1 2 3) 0) 1))
+  (is (= (sample-project/collections:first-or-default nil 0) 0)))
+
+(test apply-twice-test
+  (is (= (sample-project/collections:apply-twice #'1+ 0) 2))
+  (is (= (sample-project/collections:apply-twice #'1+ 10) 12)))
+
+(test swap-pair-test
+  (is (equal (sample-project/collections:swap-pair (cons 1 "a")) (cons "a" 1)))
+  (is (equal (sample-project/collections:swap-pair (cons :x :y)) (cons :y :x))))
+
+(test zip-lists-test
+  (is (equal (sample-project/collections:zip-lists '(1 2 3) '("a" "b" "c"))
+             '((1 . "a") (2 . "b") (3 . "c"))))
+  (is (equal (sample-project/collections:zip-lists nil nil) nil)))
+
+;;; vim: set filetype=lisp :

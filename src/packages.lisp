@@ -9,7 +9,12 @@
            #:type-annotation-p
            #:annotation-symbol
            #:annotation-type
-           #:make-type-annotation))
+           #:annotation-type-params
+           #:make-type-annotation
+           #:type-params
+           #:type-params-p
+           #:type-params-entries
+           #:make-type-params))
 
 (defpackage #:tycl/reader
   (:use #:cl #:tycl/annotation)
@@ -75,6 +80,7 @@
            #:function-type-info
            #:function-params
            #:function-return-type
+           #:function-type-params
            #:method-type-info
            #:method-specializers
            #:class-type-info

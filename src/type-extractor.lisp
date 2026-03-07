@@ -38,7 +38,8 @@
 
 (defun extract-defun-type (form)
   "Extract type information from defun form
-   (defun [name return-type] (params...) body...)"
+   (defun [name return-type] (params...) body...)
+   (defun [name <T> return-type] (params...) body...)"
   (when (< (length form) 3)
     (return-from extract-defun-type nil))
   (let* ((name-spec (second form))
@@ -49,6 +50,12 @@
          (return-type (if (tycl/annotation:type-annotation-p name-spec)
                           (tycl/annotation:annotation-type name-spec)
                           :t))
+         (type-params (when (and (tycl/annotation:type-annotation-p name-spec)
+                                 (tycl/annotation:annotation-type-params name-spec))
+                        (mapcar (lambda (sym)
+                                  (string-upcase (symbol-name sym)))
+                                (tycl/annotation:type-params-entries
+                                 (tycl/annotation:annotation-type-params name-spec)))))
          (params (extract-params-types params-spec)))
     (when (and name (symbolp name))
       (make-function-type-info
@@ -56,7 +63,8 @@
        (string-upcase (symbol-name name))
        params
        return-type
-       :source-location *current-file*))))
+       :source-location *current-file*
+       :type-params type-params))))
 
 (defun extract-params-types (params-spec)
   "Extract parameter types from parameter list
@@ -142,7 +150,8 @@
 
 (defun extract-defmethod-type (form)
   "Extract type information from defmethod form
-   (defmethod [name return-type] (params...) body...)"
+   (defmethod [name return-type] (params...) body...)
+   (defmethod [name <T> return-type] (params...) body...)"
   (when (< (length form) 3)
     (return-from extract-defmethod-type nil))
   (let* ((name-spec (second form))
@@ -153,8 +162,15 @@
          (return-type (if (tycl/annotation:type-annotation-p name-spec)
                           (tycl/annotation:annotation-type name-spec)
                           :t))
+         (type-params (when (and (tycl/annotation:type-annotation-p name-spec)
+                                 (tycl/annotation:annotation-type-params name-spec))
+                        (mapcar (lambda (sym)
+                                  (string-upcase (symbol-name sym)))
+                                (tycl/annotation:type-params-entries
+                                 (tycl/annotation:annotation-type-params name-spec)))))
          (params (extract-params-types params-spec))
          (specializers (extract-method-specializers params-spec)))
+    (declare (ignore type-params))
     (when (and name (symbolp name))
       (make-method-type-info
        *current-package*

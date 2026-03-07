@@ -92,13 +92,15 @@
 
 (defun format-function-signature (info)
   "Format function type signature for hover display"
-  (let ((type-spec (type-info-type-spec info)))
+  (let ((type-spec (type-info-type-spec info))
+        (tp (type-info-type-params info)))
     (if (and (consp type-spec)
             (eq (car type-spec) :function))
         (let ((params (second type-spec))
               (return-type (third type-spec)))
-          (format nil "```commonlisp~%(defun ~A (~{~A~^ ~})~%  => ~A)~%```"
+          (format nil "```commonlisp~%(defun ~A~A (~{~A~^ ~})~%  => ~A)~%```"
                  (type-info-name info)
+                 (if tp (format nil "<~{~A~^, ~}>" tp) "")
                  (mapcar (lambda (param)
                           (format nil "[~A ~A]"
                                   (getf param :name)

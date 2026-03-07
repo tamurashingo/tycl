@@ -1,0 +1,34 @@
+(in-package #:cl-user)
+(defpackage #:sample-project/test/collections
+  (:use #:cl
+        #:rove
+        #:sample-project/collections))
+(in-package #:sample-project/test/collections)
+
+(deftest identity-fn-test
+  (ok (= (identity-fn 42) 42))
+  (ok (string= (identity-fn "hello") "hello"))
+  (ok (equal (identity-fn '(1 2 3)) '(1 2 3))))
+
+(deftest wrap-test
+  (ok (equal (wrap 42) '(42)))
+  (ok (equal (wrap "hello") '("hello"))))
+
+(deftest first-or-default-test
+  (ok (= (first-or-default '(1 2 3) 0) 1))
+  (ok (= (first-or-default nil 0) 0))
+  (ok (string= (first-or-default '("a" "b") "default") "a"))
+  (ok (string= (first-or-default nil "default") "default")))
+
+(deftest apply-twice-test
+  (ok (= (apply-twice #'1+ 0) 2))
+  (ok (equal (apply-twice #'reverse '(1 2 3)) '(1 2 3))))
+
+(deftest swap-pair-test
+  (ok (equal (swap-pair (cons 1 "a")) (cons "a" 1)))
+  (ok (equal (swap-pair (cons :x :y)) (cons :y :x))))
+
+(deftest zip-lists-test
+  (ok (equal (zip-lists '(1 2 3) '("a" "b" "c"))
+             '((1 . "a") (2 . "b") (3 . "c"))))
+  (ok (equal (zip-lists nil nil) nil)))
