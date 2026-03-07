@@ -276,36 +276,70 @@ This enables:
 
 Type information is saved in a project-level `tycl-types.tmp` file. When using `tycl transpile-all`, the file is generated next to the `.asd` file. When using `tycl transpile` for a single file, it is generated in the current directory. The file contains multiple S-expressions (one per package) and supports merge-on-write to accumulate type information across transpilations.
 
-### Custom Macro Support (Planned)
+### Custom Macro Support
 
-**Note: Design phase. Implementation pending.**
+TyCL supports custom macros through a hook mechanism. This allows extracting type information from project-specific macro definitions.
 
-TyCL supports custom macros through a hook mechanism. This allows extracting type information from project-specific macro definitions:
+The `:type-extractor` function receives the entire form and returns a list of plists, each describing one type definition. Each plist must contain `:kind` (one of `:value`, `:function`, `:class`, `:method`), `:symbol`, and the relevant type fields.
 
 ```lisp
-;; Register a type extractor for custom macros
-(tycl:register-type-extractor 'my-framework:define-entity
-  :kind :class
-  :symbol-extractor (lambda (form) (second form))
-  :type-extractor (lambda (form)
-                   (extract-entity-type-info form)))
+;; Register a type extractor for a custom API macro
+;; (define-api get-user :params ((id :integer)) :return :string)
+(tycl:register-type-extractor 'define-api
+  :type-extractor
+    (lambda (form)
+      (let ((name (second form))
+            (body (cddr form)))
+        (list
+         `(:kind :function
+           :symbol ,name
+           :params ,(mapcar (lambda (p)
+                              (list :name (symbol-name (first p))
+                                    :type (second p)))
+                            (getf body :params))
+           :return ,(getf body :return))))))
 ```
 
-Or use a configuration file (`tycl-hooks.lisp`) in your project root:
+A hook can also return multiple type definitions at once (e.g., a class, its constructor, and a predicate):
+
+```lisp
+;; Register a type extractor for a model macro
+;; (defmodel person :slots ((name :string) (age :integer)))
+(tycl:register-type-extractor 'defmodel
+  :type-extractor
+    (lambda (form)
+      (let ((name (second form))
+            (slots (getf (cddr form) :slots)))
+        (list
+         `(:kind :class
+           :symbol ,name
+           :slots ,(mapcar (lambda (s)
+                             (list :name (symbol-name (first s))
+                                   :type (second s)))
+                           slots))
+         `(:kind :function
+           :symbol ,(intern (format nil "MAKE-~A" name))
+           :params ,(mapcar (lambda (s)
+                              (list :name (symbol-name (first s))
+                                    :type (second s)))
+                            slots)
+           :return ,name)))))
+```
+
+Hooks can be loaded automatically from a `tycl-hooks.lisp` file placed in your project root. The file is loaded when `load-tycl` or `transpile-file` is called:
 
 ```lisp
 ;;;; tycl-hooks.lisp
 
-(in-package #:tycl/hooks)
+(in-package #:tycl)
 
-;; Support for define-entity macro
 (register-type-extractor 'my-framework:define-entity
-  :kind :class
-  :symbol-extractor #'extract-entity-name
-  :type-extractor #'extract-entity-fields)
+  :type-extractor
+    (lambda (form)
+      (list `(:kind :class
+              :symbol ,(second form)
+              :slots ,(extract-entity-slots form)))))
 ```
-
-This allows TyCL to understand and extract type information from any custom DSL or macro system.
 
 ### LSP Integration
 
