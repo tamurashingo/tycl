@@ -1,0 +1,30 @@
+;;; -*- mode: lisp -*-
+(in-package #:sample-project/test-fiveam)
+
+(def-suite api-suite
+  :in sample-project-suite
+  :description "API module tests (define-api custom macro)")
+
+(in-suite api-suite)
+
+(test add-user-test
+  (setf sample-project/api:*user-database* nil)
+  (let ((u (sample-project/api:add-user "Alice" 30)))
+    (is (typep u 'sample-project/models:user))
+    (is (string= (sample-project/models:user-name u) "Alice"))
+    (is (= (length sample-project/api:*user-database*) 1))))
+
+(test find-user-test
+  (setf sample-project/api:*user-database* nil)
+  (sample-project/api:add-user "Alice" 30)
+  (sample-project/api:add-user "Bob" 25)
+  (is (string= (sample-project/api:find-user "Alice") "Alice (age: 30)"))
+  (is (null (sample-project/api:find-user "Charlie"))))
+
+(test list-users-test
+  (setf sample-project/api:*user-database* nil)
+  (sample-project/api:add-user "Alice" 30)
+  (sample-project/api:add-user "Bob" 25)
+  (is (stringp (sample-project/api:list-users))))
+
+;;; vim: set filetype=lisp :

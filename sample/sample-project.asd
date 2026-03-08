@@ -22,9 +22,12 @@
   :components ((:module "src"
                 :serial t
                 :components
-                ((:tycl-file "math")
+                ((:file "macros")
+                 (:tycl-file "math")
                  (:tycl-file "string-utils")
                  (:tycl-file "collections")
+                 (:tycl-file "models")
+                 (:tycl-file "api")
                  (:file "config")
                  (:tycl-file "main"))))
   :in-order-to ((test-op (test-op "sample-project/test-rove"))))
@@ -41,7 +44,9 @@
                 ((:tycl-file "config")
                  (:tycl-file "math")
                  (:tycl-file "string-utils")
-                 (:tycl-file "collections"))))
+                 (:tycl-file "collections")
+                 (:tycl-file "models")
+                 (:tycl-file "api"))))
   :perform (test-op (op c)
              (uiop:symbol-call :rove :run c)))
 
@@ -59,7 +64,9 @@
                  (:tycl-file "math")
                  (:tycl-file "string-utils")
                  (:tycl-file "collections")
-                 (:file "config"))))
+                 (:file "config")
+                 (:tycl-file "models")
+                 (:tycl-file "api"))))
   :perform (test-op (op c)
              (declare (ignore op c))
              (uiop:symbol-call :sample-project/test-fiveam :run-tests)))

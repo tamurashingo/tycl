@@ -1,0 +1,29 @@
+;;; -*- mode: lisp -*-
+;;;; Sample Project - API (TyCL)
+;;;; Demonstrates define-api custom macro with type extraction
+(in-package #:cl-user)
+(defpackage #:sample-project/api
+  (:use #:cl #:sample-project/macros #:sample-project/models)
+  (:export #:*user-database*
+           #:add-user
+           #:find-user
+           #:list-users))
+(in-package #:sample-project/api)
+
+(defvar *user-database* nil)
+
+(define-api [add-user user] ([name :string] [age :integer])
+  (let ((u (make-user name age)))
+    (push u *user-database*)
+    u))
+
+(define-api [find-user (:string :null)] ([name :string])
+  (let ((u (find name *user-database*
+                 :key #'user-name :test #'string=)))
+    (when u (describe-user u))))
+
+(define-api [list-users :string] ()
+  (format nil "Users: ~{~A~^, ~}"
+          (mapcar #'user-name *user-database*)))
+
+;;; vim: set filetype=lisp :

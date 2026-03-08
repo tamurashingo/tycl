@@ -1,0 +1,16 @@
+(in-package #:cl-user)
+(defpackage #:sample-project/test/models
+  (:use #:cl
+        #:rove
+        #:sample-project/models))
+(in-package #:sample-project/test/models)
+
+(deftest make-user-test
+  (let ((u (make-user "Alice" 30)))
+    (ok (typep u 'user))
+    (ok (string= (user-name u) "Alice"))
+    (ok (= (user-age u) 30))))
+
+(deftest describe-user-test
+  (let ((u (make-user "Bob" 25)))
+    (ok (string= (describe-user u) "Bob (age: 25)"))))

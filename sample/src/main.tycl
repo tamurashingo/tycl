@@ -25,6 +25,10 @@
                 #:*app-name*
                 #:*version*
                 #:*max-items*)
+  (:import-from #:sample-project/api
+                #:add-user
+                #:find-user
+                #:list-users)
   (:export #:format-result
            #:describe-app
            #:run))
@@ -67,6 +71,12 @@
   (format t "~A~%" (join-strings '("Hello" "TyCL" "World") ", "))
   (format t "~A~%" (repeat-string "ab" 3))
   (format t "~A~%" (truncate-string "Hello, TyCL World!" 10))
+  (format t "~%--- Custom Macros (Type Extractors) ---~%")
+  (add-user "Alice" 30)
+  (add-user "Bob" 25)
+  (format t "~A~%" (list-users))
+  (format t "find Alice: ~A~%" (find-user "Alice"))
+  (format t "find Charlie: ~A~%" (find-user "Charlie"))
   (format t "~%Done.~%"))
 
 ;;; vim: set filetype=lisp :

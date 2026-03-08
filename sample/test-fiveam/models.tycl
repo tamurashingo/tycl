@@ -1,0 +1,20 @@
+;;; -*- mode: lisp -*-
+(in-package #:sample-project/test-fiveam)
+
+(def-suite models-suite
+  :in sample-project-suite
+  :description "Models module tests (defmodel custom macro)")
+
+(in-suite models-suite)
+
+(test make-user-test
+  (let ((u (sample-project/models:make-user "Alice" 30)))
+    (is (typep u 'sample-project/models:user))
+    (is (string= (sample-project/models:user-name u) "Alice"))
+    (is (= (sample-project/models:user-age u) 30))))
+
+(test describe-user-test
+  (let ((u (sample-project/models:make-user "Bob" 25)))
+    (is (string= (sample-project/models:describe-user u) "Bob (age: 25)"))))
+
+;;; vim: set filetype=lisp :

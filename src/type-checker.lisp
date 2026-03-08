@@ -472,12 +472,16 @@
    Errors are stored in *TYPE-CHECK-ERRORS*."
   (clear-type-errors)
   (let ((*readtable* *tycl-readtable*)
+        (*package* *package*)
         (forms nil))
     ;; Pass 1: Read all forms
+    ;; Process in-package/defpackage during reading so that symbols
+    ;; are interned in the correct package (same as compile-file behavior).
     (with-input-from-string (in tycl-string)
       (loop for form = (read in nil :eof)
             until (eq form :eof)
-            do (push form forms)))
+            do (tycl/transpiler:process-reader-package-form form)
+               (push form forms)))
     (setf forms (nreverse forms))
     ;; Pass 1.5: Extract type information (so forward references work)
     (let ((tycl:*current-package* *current-package*))

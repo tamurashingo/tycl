@@ -26,7 +26,8 @@
   (:use #:cl #:tycl/annotation #:tycl/reader)
   (:export #:transpile-form
            #:transpile-string
-           #:transpile-file))
+           #:transpile-file
+           #:process-reader-package-form))
 
 (defpackage #:tycl/type-checker
   (:use #:cl #:tycl/annotation #:tycl/reader)

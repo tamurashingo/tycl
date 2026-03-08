@@ -1,0 +1,27 @@
+(in-package #:cl-user)
+(defpackage #:sample-project/test/api
+  (:use #:cl
+        #:rove
+        #:sample-project/models
+        #:sample-project/api))
+(in-package #:sample-project/test/api)
+
+(deftest add-user-test
+  (setf *user-database* nil)
+  (let ((u (add-user "Alice" 30)))
+    (ok (typep u 'user))
+    (ok (string= (user-name u) "Alice"))
+    (ok (= (length *user-database*) 1))))
+
+(deftest find-user-test
+  (setf *user-database* nil)
+  (add-user "Alice" 30)
+  (add-user "Bob" 25)
+  (ok (string= (find-user "Alice") "Alice (age: 30)"))
+  (ok (null (find-user "Charlie"))))
+
+(deftest list-users-test
+  (setf *user-database* nil)
+  (add-user "Alice" 30)
+  (add-user "Bob" 25)
+  (ok (stringp (list-users))))

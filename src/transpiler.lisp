@@ -28,18 +28,47 @@
     ;; Atom - return as-is
     (t form)))
 
+(defun process-reader-package-form (form)
+  "Process in-package and defpackage forms to update *package* during reading.
+   This mirrors the behavior of COMPILE-FILE and LOAD, where these forms
+   affect the reader's package for subsequent forms in the same file."
+  (when (consp form)
+    (let ((op (first form)))
+      (cond
+        ;; (in-package <package-designator>)
+        ((and (symbolp op) (string= (symbol-name op) "IN-PACKAGE"))
+         (let* ((pkg-designator (second form))
+                (pkg-name (etypecase pkg-designator
+                            (string pkg-designator)
+                            (symbol (symbol-name pkg-designator))
+                            (keyword (symbol-name pkg-designator))))
+                (pkg (find-package pkg-name)))
+           (when pkg
+             (setf *package* pkg))))
+        ;; (defpackage <name> ...)
+        ;; Evaluate defpackage so that subsequent in-package and symbol resolution
+        ;; work correctly.  Silently ignore errors (e.g. when dependency packages
+        ;; are not yet loaded, as in standalone type checking).
+        ((and (symbolp op) (string= (symbol-name op) "DEFPACKAGE"))
+         (handler-case (eval form)
+           (error () nil)))))))
+
 (defun transpile-string (tycl-string &key extract-types)
   "Transpile TyCL source code string to CL source code string.
    Returns the transpiled code as a string.
    If EXTRACT-TYPES is T, also extracts type information.
    Uses 2-pass approach: read all forms, extract types + type check, then transpile."
   (let ((*readtable* *tycl-readtable*)
+        (*package* *package*)
         (raw-forms nil))
     ;; Pass 1: Read all forms
+    ;; Process in-package/defpackage during reading so that symbols
+    ;; are interned in the correct package (same as compile-file behavior).
     (with-input-from-string (in tycl-string)
       (loop for form = (read in nil :eof)
             until (eq form :eof)
-            do (push form raw-forms)))
+            do (process-reader-package-form form)
+               (push form raw-forms)))
     (setf raw-forms (nreverse raw-forms))
     ;; Pass 2: Extract type information (before transpilation strips annotations)
     (when extract-types

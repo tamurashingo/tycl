@@ -1,0 +1,22 @@
+;;; -*- mode: lisp -*-
+;;;; Sample Project - Models (TyCL)
+;;;; Demonstrates defmodel custom macro with type extraction
+(in-package #:cl-user)
+(defpackage #:sample-project/models
+  (:use #:cl #:sample-project/macros)
+  (:export #:user #:user-name #:user-age
+           #:make-user #:describe-user))
+(in-package #:sample-project/models)
+
+;; defmodel uses macro-specific syntax for type info (not TyCL's [] notation)
+(defmodel user
+  ((name :string)
+   (age :integer)))
+
+(defun [make-user user] ([name :string] [age :integer])
+  (make-instance 'user :name name :age age))
+
+(defun [describe-user :string] ([u user])
+  (format nil "~A (age: ~A)" (user-name u) (user-age u)))
+
+;;; vim: set filetype=lisp :

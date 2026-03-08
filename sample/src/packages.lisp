@@ -28,12 +28,25 @@
            #:apply-twice
            #:zip-lists))
 
+(defpackage #:sample-project/models
+  (:use #:cl #:sample-project/macros)
+  (:export #:user #:user-name #:user-age
+           #:make-user #:describe-user))
+
+(defpackage #:sample-project/api
+  (:use #:cl #:sample-project/macros #:sample-project/models)
+  (:export #:*user-database*
+           #:add-user
+           #:find-user
+           #:list-users))
+
 (defpackage #:sample-project/main
   (:use #:cl
         #:sample-project/math
         #:sample-project/string-utils
         #:sample-project/config
-        #:sample-project/collections)
+        #:sample-project/collections
+        #:sample-project/api)
   (:export #:format-result
            #:describe-app
            #:run))
