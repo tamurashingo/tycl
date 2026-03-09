@@ -193,6 +193,35 @@ Define generic functions with type variables using `<T>` notation:
 
 The `<...>` notation is only active inside `[...]` brackets. Outside brackets, `<` and `>` remain normal symbols, so `(< a b)` works as expected.
 
+### Class Inheritance and Subtype Polymorphism
+
+TyCL supports subtype polymorphism through class inheritance. When a class inherits from another, the subclass is accepted wherever the parent type is expected:
+
+```lisp
+(defclass animal () ((name :type :string)))
+(defclass dog (animal) ((breed :type :string)))
+
+;; dog is accepted where animal is expected
+(defun [greet :string] ([a animal])
+  (slot-value a 'name))
+
+(defun [greet-dog :string] ([d dog])
+  (greet d))  ; OK — dog is a subtype of animal
+```
+
+Multi-level inheritance is also supported:
+
+```lisp
+(defclass a () ((x :type :integer)))
+(defclass b (a) ((y :type :string)))
+(defclass c (b) ((z :type :float)))
+
+(defun [process :t] ([obj a]) obj)
+(defun [use-c :t] ([obj c]) (process obj))  ; OK — c inherits from b, which inherits from a
+```
+
+Subtype checking is directional: a parent class cannot be used where a child type is expected, and unrelated classes are not compatible with each other.
+
 ### Type Casting
 
 The bracket notation `[expr type]` can also be used on arbitrary expressions to assert a type. This works like TypeScript's `as` operator — it tells the type checker to treat the expression as the specified type without affecting the generated code.

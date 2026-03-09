@@ -191,3 +191,46 @@
     (let ((errors (check-and-get-errors
                    "(defmethod [greet :string] ([name :string]) name)")))
       (ok (null errors)))))
+
+;;; Class subtype compatibility
+
+(deftest test-class-subtype-direct
+  (testing "Direct subclass is compatible with parent type"
+    (let ((errors (check-and-get-errors
+                   "(defclass foo () ((x :type :integer)))
+                    (defclass bar (foo) ((y :type :string)))
+                    (defun [process :t] ([obj foo]) obj)
+                    (defun [test-it :t] ([b bar]) (process b))")))
+      (ok (null errors) "bar should be accepted where foo is expected"))))
+
+(deftest test-class-subtype-multi-level
+  (testing "Multi-level inheritance: grandchild is compatible with grandparent"
+    (let ((errors (check-and-get-errors
+                   "(defclass a () ((x :type :integer)))
+                    (defclass b (a) ((y :type :string)))
+                    (defclass c (b) ((z :type :float)))
+                    (defun [process :t] ([obj a]) obj)
+                    (defun [test-it :t] ([c-obj c]) (process c-obj))")))
+      (ok (null errors) "c should be accepted where a is expected"))))
+
+(deftest test-class-subtype-unrelated
+  (testing "Unrelated class is not compatible"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defclass foo () ((x :type :integer)))
+          (defclass baz () ((z :type :string)))
+          (defun [process :t] ([obj foo]) obj)
+          (defun [test-it :t] ([b baz]) (process b))")
+      (ng result "baz is not a subtype of foo")
+      (ok (not (null errors))))))
+
+(deftest test-class-subtype-reverse
+  (testing "Parent class is not compatible with child type"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defclass foo () ((x :type :integer)))
+          (defclass bar (foo) ((y :type :string)))
+          (defun [process :t] ([obj bar]) obj)
+          (defun [test-it :t] ([f foo]) (process f))")
+      (ng result "foo is not a subtype of bar")
+      (ok (not (null errors))))))

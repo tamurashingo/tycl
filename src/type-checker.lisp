@@ -100,6 +100,23 @@
 
 ;;; Type Compatibility
 
+(defun class-subtype-p (actual expected)
+  "Check if ACTUAL type (symbol) is a subtype of EXPECTED type (symbol) via class inheritance."
+  (class-subtype-p-by-name
+   (string-upcase (symbol-name actual))
+   (string-upcase (symbol-name expected))))
+
+(defun class-subtype-p-by-name (actual-name expected-name)
+  "Check if class ACTUAL-NAME is a subtype of EXPECTED-NAME by walking superclasses.
+   Both arguments are uppercase strings."
+  (let ((info (tycl::lookup-type-info *current-package* actual-name)))
+    (when (and info (typep info 'tycl::class-type-info))
+      (let ((supers (tycl::class-superclasses info)))
+        (or (member expected-name supers :test #'string=)
+            (some (lambda (super)
+                    (class-subtype-p-by-name super expected-name))
+                  supers))))))
+
 (defun type-compatible-p (actual expected)
   "Check if ACTUAL type is compatible with EXPECTED type.
    Resolves type aliases before comparison.
@@ -114,9 +131,9 @@
       ;; Exact match
       ((equal actual expected) t)
 
-      ;; Union type: actual must be one of the union members
+      ;; Union type: actual must be compatible with one of the union members
       ((and (consp expected) (not (consp actual)))
-       (member actual expected :test #'equal))
+       (some (lambda (member-type) (type-compatible-p actual member-type)) expected))
 
       ;; Generic types: check base and parameters
       ((and (consp actual) (consp expected))
@@ -128,6 +145,11 @@
       ((and (member actual '(:integer :float :double-float :rational))
             (member expected '(:number)))
        t)
+
+      ;; Class subtype compatibility
+      ((and (symbolp actual) (not (keywordp actual))
+            (symbolp expected) (not (keywordp expected)))
+       (class-subtype-p actual expected))
 
       ;; Default: incompatible
       (t nil))))
