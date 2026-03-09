@@ -145,6 +145,24 @@
       (call-next-method)))
 
 ;;; ============================================================
+;;; Dependency type loading
+;;; ============================================================
+
+(defun load-dependency-types (system)
+  "Load tycl-types.tmp from dependency tycl-systems."
+  (dolist (dep-name (asdf:system-depends-on system))
+    (handler-case
+        (let ((dep-system (asdf:find-system dep-name nil)))
+          (when (and dep-system (typep dep-system 'tycl-system))
+            (let ((type-file (merge-pathnames
+                              (make-pathname :name "tycl-types" :type "tmp")
+                              (asdf:system-source-directory dep-system))))
+              (when (probe-file type-file)
+                (tycl:load-type-database type-file :output *error-output*)))))
+      (error (e)
+        (warn "TyCL: Failed to load types from dependency ~A: ~A" dep-name e)))))
+
+;;; ============================================================
 ;;; Perform
 ;;; ============================================================
 
@@ -154,6 +172,8 @@
          (system (asdf:component-system c))
          (extract-types (tycl-extract-types-p system))
          (save-types (tycl-save-types-p system)))
+    (when extract-types
+      (load-dependency-types system))
     (ensure-directories-exist output-file)
     (tycl:transpile-file input-file output-file
                          :extract-types extract-types

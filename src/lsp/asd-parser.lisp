@@ -254,7 +254,16 @@
         (when load-dependencies
           (dolist (dep (asdf:system-depends-on system))
             (handler-case
-                (asdf:load-system dep)
+                (progn
+                  (asdf:load-system dep)
+                  ;; Load type database from dependency tycl-systems
+                  (let ((dep-system (asdf:find-system dep nil)))
+                    (when (and dep-system (typep dep-system 'tycl/asdf:tycl-system))
+                      (let ((type-file (merge-pathnames
+                                        (make-pathname :name "tycl-types" :type "tmp")
+                                        (asdf:system-source-directory dep-system))))
+                        (when (probe-file type-file)
+                          (tycl:load-type-database type-file :output output))))))
               (error (e)
                 (format output "~&Warning: Failed to load dependency ~A: ~A~%" dep e)))))
         (labels ((process-component (component)

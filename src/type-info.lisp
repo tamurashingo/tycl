@@ -255,7 +255,13 @@
     ((keywordp type-spec) type-spec)
     ;; Non-keyword symbol: could be a type alias
     ((symbolp type-spec)
-     (let ((expanded (lookup-type-alias package (string-upcase (symbol-name type-spec)))))
+     (let* ((name (string-upcase (symbol-name type-spec)))
+            (expanded (or (lookup-type-alias package name)
+                          ;; Try the symbol's home package as fallback
+                          (let ((sym-pkg (symbol-package type-spec)))
+                            (when (and sym-pkg
+                                       (not (string= (package-name sym-pkg) package)))
+                              (lookup-type-alias (package-name sym-pkg) name))))))
        (if expanded
            (resolve-type-alias expanded package (1+ depth))
            type-spec)))

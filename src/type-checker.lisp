@@ -18,6 +18,40 @@
 (defvar *current-package* "COMMON-LISP-USER"
   "Current package for type checking")
 
+(defvar *current-form-line* nil
+  "Line number of the current top-level form being checked")
+
+(defun skip-whitespace-and-comments (source-string start)
+  "Skip whitespace and line comments from START to find where a form begins."
+  (let ((pos start)
+        (len (length source-string)))
+    (loop while (< pos len)
+          for ch = (char source-string pos)
+          do (cond
+               ((member ch '(#\Space #\Tab #\Newline #\Return #\Page))
+                (incf pos))
+               ((char= ch #\;)
+                (loop while (and (< pos len)
+                                 (char/= (char source-string pos) #\Newline))
+                      do (incf pos)))
+               (t (return pos))))
+    pos))
+
+(defun compute-line-number (source-string position)
+  "Count newlines in SOURCE-STRING up to POSITION to get 1-based line number."
+  (1+ (count #\Newline source-string :end (min position (length source-string)))))
+
+(defun resolve-type-info-for-symbol (sym)
+  "Look up type info for SYM, trying its home package first,
+   then *current-package* as fallback."
+  (let* ((sym-name (string-upcase (symbol-name sym)))
+         (home-pkg (symbol-package sym))
+         (home-pkg-name (when home-pkg (package-name home-pkg))))
+    (or (when (and home-pkg-name
+                   (not (string= home-pkg-name *current-package*)))
+          (tycl:get-type-info home-pkg-name sym-name))
+        (tycl:get-type-info *current-package* sym-name))))
+
 (defclass type-error-info ()
   ((form
     :initarg :form
@@ -43,7 +77,8 @@
 
 (defun record-type-error (form message &optional location)
   "Record a type checking error"
-  (push (make-type-error form message location) *type-check-errors*))
+  (push (make-type-error form message (or location *current-form-line*))
+        *type-check-errors*))
 
 (defun clear-type-errors ()
   "Clear all recorded type errors"
@@ -115,7 +150,7 @@
     ;; Variables: lookup in environment
     ((symbolp expr)
      (or (cdr (assoc expr env))
-         (let ((var-info (tycl:get-type-info *current-package* (string-upcase (symbol-name expr)))))
+         (let ((var-info (resolve-type-info-for-symbol expr)))
            (if (and var-info (typep var-info 'tycl:value-type-info))
                (tycl:value-type-spec var-info)
                :t))))
@@ -157,8 +192,7 @@
                (second local-info))
               ;; DB registered function
               (t
-               (let ((func-info (tycl:get-type-info *current-package*
-                                                     (string-upcase (symbol-name op)))))
+               (let ((func-info (resolve-type-info-for-symbol op)))
                  (if (and func-info (typep func-info 'tycl:function-type-info))
                      (tycl:function-return-type func-info)
                      :t))))))
@@ -351,6 +385,18 @@
       (setf body-env (check-form expr body-env)))
     env))
 
+(defun type-variable-p (type-spec type-params)
+  "Check if TYPE-SPEC is (or contains) a type variable from TYPE-PARAMS.
+   TYPE-PARAMS is a list of type variable name strings, e.g. (\"T\" \"A\" \"B\")."
+  (when type-params
+    (cond
+      ((keywordp type-spec) nil)
+      ((symbolp type-spec)
+       (member (string-upcase (symbol-name type-spec)) type-params :test #'string=))
+      ((consp type-spec)
+       (some (lambda (sub) (type-variable-p sub type-params)) type-spec))
+      (t nil))))
+
 (defun check-function-call-form (form env)
   "Check a function call form.
    Recursively checks arguments and validates against DB if available."
@@ -360,10 +406,10 @@
     (dolist (arg args)
       (check-form arg env))
     ;; Check against type database
-    (let ((func-info (tycl:get-type-info *current-package*
-                                          (string-upcase (symbol-name func-name)))))
+    (let ((func-info (resolve-type-info-for-symbol func-name)))
       (when (and func-info (typep func-info 'tycl:function-type-info))
-        (let ((params (tycl:function-params func-info)))
+        (let ((params (tycl:function-params func-info))
+              (type-params (tycl:function-type-params func-info)))
           ;; Check argument count
           (unless (= (length args) (length params))
             (record-type-error
@@ -371,12 +417,13 @@
              (format nil "Function ~S: expected ~D arguments, got ~D"
                      func-name (length params) (length args)))
             (return-from check-function-call-form env))
-          ;; Check argument types
+          ;; Check argument types (skip type variable parameters)
           (loop for arg in args
                 for param in params
                 for expected-type = (getf param :type)
                 for actual-type = (infer-type arg env)
-                unless (type-compatible-p actual-type expected-type)
+                unless (or (type-variable-p expected-type type-params)
+                           (type-compatible-p actual-type expected-type))
                 do (record-type-error
                     arg
                     (format nil "Function ~S: argument type mismatch, expected ~S but got ~S"
@@ -457,12 +504,13 @@
 ;;; High-level API
 
 (defun run-type-checks (forms)
-  "Run type checks on a list of forms.
+  "Run type checks on a list of (form . line) pairs.
    Returns T if no errors, NIL if errors found.
    Errors are accumulated in *type-check-errors*."
   (let ((env nil))
-    (dolist (form forms)
-      (setf env (check-form form env))))
+    (dolist (entry forms)
+      (let ((*current-form-line* (cdr entry)))
+        (setf env (check-form (car entry) env)))))
   (null *type-check-errors*))
 
 (defun check-string (tycl-string)
@@ -472,29 +520,52 @@
    Errors are stored in *TYPE-CHECK-ERRORS*."
   (clear-type-errors)
   (let ((*readtable* *tycl-readtable*)
-        (*package* *package*)
+        (*package* (find-package "COMMON-LISP-USER"))
         (forms nil))
-    ;; Pass 1: Read all forms
+    ;; Pass 1: Read all forms with line tracking
     ;; Process in-package/defpackage during reading so that symbols
     ;; are interned in the correct package (same as compile-file behavior).
     (with-input-from-string (in tycl-string)
-      (loop for form = (read in nil :eof)
+      (loop for pos = (file-position in)
+            for form = (read in nil :eof)
             until (eq form :eof)
+            for form-pos = (skip-whitespace-and-comments tycl-string pos)
+            for line = (compute-line-number tycl-string form-pos)
             do (tycl/transpiler:process-reader-package-form form)
-               (push form forms)))
+               (push (cons form line) forms)))
     (setf forms (nreverse forms))
     ;; Pass 1.5: Extract type information (so forward references work)
     (let ((tycl:*current-package* *current-package*))
-      (dolist (form forms)
-        (tycl:extract-type-from-form form)))
-    ;; Pass 2: Type check
+      (dolist (entry forms)
+        (tycl:extract-type-from-form (car entry))))
+    ;; Pass 2: Type check (with line tracking)
     (run-type-checks forms))
   (null *type-check-errors*))
+
+(defun load-project-type-context (directory)
+  "Load tycl-types.tmp from directory or its parent."
+  (let ((type-file (merge-pathnames
+                    (make-pathname :name "tycl-types" :type "tmp")
+                    directory)))
+    (when (probe-file type-file)
+      (tycl:load-type-database type-file :output *error-output*)
+      (return-from load-project-type-context t)))
+  (let ((parent (uiop:pathname-parent-directory-pathname directory)))
+    (when (and parent (not (equal parent directory)))
+      (let ((type-file (merge-pathnames
+                        (make-pathname :name "tycl-types" :type "tmp")
+                        parent)))
+        (when (probe-file type-file)
+          (tycl:load-type-database type-file :output *error-output*))))))
 
 (defun check-file (input-file)
   "Check types in a .tycl file.
    Returns T if no errors, NIL if errors found.
    Prints errors to *standard-output*."
+  ;; Load hooks (custom type extractors)
+  (tycl:find-and-load-hooks (uiop:pathname-directory-pathname input-file))
+  ;; Load project type database (search file dir and parent)
+  (load-project-type-context (uiop:pathname-directory-pathname input-file))
   (let ((tycl-source (uiop:read-file-string input-file))
         (result nil))
     (setf result (check-string tycl-source))
@@ -503,9 +574,14 @@
         (progn
           (format t "~&Type check failed: ~A~%" input-file)
           (dolist (err (reverse *type-check-errors*))
-            (format t "  Error: ~A~%    in: ~S~%"
-                    (error-message err)
-                    (error-form err)))))
+            (if (error-location err)
+                (format t "  Error: Line ~A: ~A~%    in: ~S~%"
+                        (error-location err)
+                        (error-message err)
+                        (error-form err))
+                (format t "  Error: ~A~%    in: ~S~%"
+                        (error-message err)
+                        (error-form err))))))
     result))
 
 ;;; Legacy compatibility
@@ -513,7 +589,7 @@
 (defun check-function-call (function-name args &optional env)
   "Check if a function call has correct argument types.
    ENV is a type environment for local variables."
-  (let ((func-info (tycl:get-type-info *current-package* (string (string-upcase (symbol-name function-name))))))
+  (let ((func-info (resolve-type-info-for-symbol function-name)))
     (when (and func-info (typep func-info 'tycl:function-type-info))
       (let ((params (tycl:function-params func-info)))
         ;; Check argument count

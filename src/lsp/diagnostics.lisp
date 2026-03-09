@@ -82,10 +82,11 @@
           (tycl/type-checker:check-string text)
           ;; Convert type-check-errors to LSP diagnostics
           (dolist (err (reverse tycl/type-checker:*type-check-errors*))
-            (push (make-diagnostic 0 0 1
-                                   (tycl/type-checker:error-message err)
-                                   2)  ; severity=Warning
-                  diagnostics)))
+            (let ((line (or (tycl/type-checker:error-location err) 0)))
+              (push (make-diagnostic (max 0 (1- line)) 0 1
+                                     (tycl/type-checker:error-message err)
+                                     2)  ; severity=Warning
+                    diagnostics))))
       (error (e)
         (when *debug-mode*
           (format *error-output* "~%Type checking error: ~A~%" e))))
