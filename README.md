@@ -4,17 +4,84 @@
 
 TyCL (Typed Common Lisp) is a type system extension that brings gradual typing and modern development experience to Common Lisp.
 
-## Project Goals
-
 - **Enhanced Developer Experience**: Provide code completion, static analysis, and documentation through LSP (Language Server Protocol) based on type information
 - **Full Compatibility with Existing CL**: Code with type annotations can be executed directly in standard Common Lisp implementations
 - **Optional Typing**: Works with or without types, allowing gradual type adoption
 
-## Features
+## Installation
 
-### Type Annotation Syntax
+```bash
+# Install with roswell
+ros install tamurashingo/tycl
+```
 
-Intuitive type annotations using `[]` (brackets):
+After installation, the `tycl` command is available directly in your PATH.
+
+## Commands
+
+### tycl transpile
+
+Transpile a `.tycl` file to `.lisp`, stripping type annotations and generating standard Common Lisp code.
+
+```bash
+tycl transpile <input.tycl> [<output.lisp>]
+```
+
+If the output path is omitted, it uses the same name with a `.lisp` extension.
+
+```bash
+# Transpile a .tycl file to .lisp
+tycl transpile src/example.tycl
+
+# Transpile with custom output path
+tycl transpile src/example.tycl build/example.lisp
+```
+
+### tycl transpile-all
+
+Transpile all `.tycl` files defined in a `.asd` file. This scans all `tycl-file` components across all `tycl-system` definitions in the given `.asd` file, transpiles each one, and saves project-level type information to `tycl-types.tmp` next to the `.asd` file.
+
+```bash
+tycl transpile-all <file.asd>
+```
+
+### tycl check
+
+Type check a single `.tycl` file without transpiling. Returns exit code 0 if all types are valid, exit code 1 if errors are found.
+
+```bash
+tycl check <input.tycl>
+```
+
+### tycl check-all
+
+Type check all `.tycl` files defined in a `.asd` file. Pre-loads `tycl-types.tmp` before checking so that dependency types are available.
+
+```bash
+tycl check-all <file.asd>
+```
+
+### tycl lsp
+
+Start the Language Server Protocol server. See the [LSP](#lsp) section for details.
+
+```bash
+tycl lsp
+```
+
+### tycl help
+
+Show usage information for all commands.
+
+```bash
+tycl help
+```
+
+## Writing TyCL Code
+
+### Type Annotations
+
+TyCL uses `[]` (brackets) for type annotations:
 
 ```lisp
 ;; Function definition
@@ -32,7 +99,18 @@ Intuitive type annotations using `[]` (brackets):
   (square 5))
 ```
 
-### Union Types
+### Types
+
+#### Basic Types
+
+- **Numbers**: `:integer`, `:float`, `:double-float`, `:rational`, `:number`, etc.
+- **Strings**: `:string`, `:character`, `:simple-string`
+- **Sequences**: `:list`, `:vector`, `:array`, `:cons`
+- **Logic**: `:boolean`, `:symbol`, `:keyword`
+- **Control**: `:void` (no return value), `:null`, `:t` (any type)
+- **Others**: `:function`, `:hash-table`, `:stream`, `:pathname`
+
+#### Union Types
 
 Accept multiple types:
 
@@ -43,7 +121,33 @@ Accept multiple types:
     (string (handle-string value))))
 ```
 
-### Generics (Collection Types)
+### Custom Type Definitions (deftype-tycl)
+
+Reusable type definitions with `deftype-tycl`:
+
+```lisp
+;; Simple alias
+(deftype-tycl userid :integer)
+(deftype-tycl nullable-num (:integer :null))
+
+;; Parametric type aliases
+(deftype-tycl (result T) (:list (T)))
+(deftype-tycl (pair A B) (:list (A B)))
+
+;; Usage
+(defun [get-user :string] ([id userid])
+  (fetch-user-from-db id))
+
+(defun [get-range (result :integer)] ([start :integer] [end :integer])
+  (loop for i from start to end collect i))
+
+(defun [make-pair (pair :integer :string)] ([n :integer] [label :string])
+  (list n label))
+```
+
+Type aliases are resolved during transpilation and do not appear in the generated `.lisp` output.
+
+### Generics
 
 Data structures with type parameters:
 
@@ -53,7 +157,7 @@ Data structures with type parameters:
   (reduce #'+ nums :initial-value 0))
 
 ;; Hash tables (Java: Map<String, String>)
-(defun [lookup (:string :null)] 
+(defun [lookup (:string :null)]
        ([table (:hash-table (:string) (:string))]
         [key :string])
   (gethash key table))
@@ -62,8 +166,6 @@ Data structures with type parameters:
 (defun [matrix (:list (:list (:string)))] ()
   ...)
 ```
-
-### Type Variables and Polymorphism
 
 Define generic functions with type variables using `<T>` notation:
 
@@ -91,33 +193,7 @@ Define generic functions with type variables using `<T>` notation:
 
 The `<...>` notation is only active inside `[...]` brackets. Outside brackets, `<` and `>` remain normal symbols, so `(< a b)` works as expected.
 
-### Type Aliases
-
-Reusable type definitions with `deftype-tycl`:
-
-```lisp
-;; Simple alias
-(deftype-tycl userid :integer)
-(deftype-tycl nullable-num (:integer :null))
-
-;; Parametric type aliases
-(deftype-tycl (result T) (:list (T)))
-(deftype-tycl (pair A B) (:list (A B)))
-
-;; Usage
-(defun [get-user :string] ([id userid])
-  (fetch-user-from-db id))
-
-(defun [get-range (result :integer)] ([start :integer] [end :integer])
-  (loop for i from start to end collect i))
-
-(defun [make-pair (pair :integer :string)] ([n :integer] [label :string])
-  (list n label))
-```
-
-Type aliases are resolved during transpilation and do not appear in the generated `.lisp` output.
-
-### Type Casting (Type Assertion)
+### Type Casting
 
 The bracket notation `[expr type]` can also be used on arbitrary expressions to assert a type. This works like TypeScript's `as` operator — it tells the type checker to treat the expression as the specified type without affecting the generated code.
 
@@ -144,86 +220,7 @@ Any expression can be cast:
 
 **Note**: Type casts are unchecked — they override the type checker without runtime validation. Use them when you know the types are compatible at runtime but the type checker cannot infer this.
 
-## Available Types
-
-### Basic Types
-
-- **Numbers**: `:integer`, `:float`, `:double-float`, `:rational`, `:number`, etc.
-- **Strings**: `:string`, `:character`, `:simple-string`
-- **Sequences**: `:list`, `:vector`, `:array`, `:cons`
-- **Logic**: `:boolean`, `:symbol`, `:keyword`
-- **Control**: `:void` (no return value), `:null`, `:t` (any type)
-- **Others**: `:function`, `:hash-table`, `:stream`, `:pathname`
-
-## Usage
-
-### Command Line Interface
-
-TyCL provides a command-line tool for transpiling and type checking:
-
-```bash
-# Transpile a .tycl file to .lisp
-tycl transpile src/example.tycl
-
-# Transpile with custom output path
-tycl transpile src/example.tycl build/example.lisp
-
-# Check type annotations
-tycl check src/example.tycl
-
-# Show help
-tycl help
-```
-
-**Installation:**
-
-```bash
-# Install with roswell (recommended)
-ros install tamurashingo/tycl
-```
-
-After installation, the `tycl` command is available directly in your PATH.
-
-### Loading TyCL Files
-
-```lisp
-;; Load and transpile a .tycl file
-(tycl:load-tycl "src/example.tycl")
-
-;; With options
-(tycl:load-tycl "src/example.tycl" 
-                :output-dir "build"        ; Output directory
-                :if-exists :overwrite      ; Overwrite existing files
-                :compile t)                ; Compile before loading
-
-;; Or use shorthand
-(tycl:compile-and-load-tycl "src/example.tycl" :if-exists :overwrite)
-```
-
-### Transpiling Files
-
-```lisp
-;; Transpile a single file
-(tycl:transpile-file "src/example.tycl" "src/example.lisp")
-
-;; Transpile a string
-(tycl:transpile-string 
-  "(defun [add :integer] ([x :integer] [y :integer]) (+ x y))")
-```
-
-### Type Checking
-
-```lisp
-;; Check types in a file
-(tycl:check-file "src/example.tycl")
-;; => T (no errors) or NIL (errors found)
-
-;; Check types in a string
-(tycl:check-string "(defun [add :integer] ([x :integer]) x)")
-;; => T
-```
-
-### ASDF Integration
+## ASDF Integration
 
 TyCL provides an ASDF extension that allows `.tycl` files to be used directly in `defsystem` definitions. `asdf:load-system` handles the full transpile → compile → load pipeline automatically.
 
@@ -241,7 +238,7 @@ TyCL provides an ASDF extension that allows `.tycl` files to be used directly in
      (:tycl-file "main")))))
 ```
 
-#### System Options
+### System Options
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -249,7 +246,7 @@ TyCL provides an ASDF extension that allows `.tycl` files to be used directly in
 | `:tycl-extract-types` | `t` | Extract type information during transpilation |
 | `:tycl-save-types` | `t` | Save type information to `tycl-types.tmp` |
 
-#### Forward Declaration Stub
+### Forward Declaration Stub
 
 When ASDF reads a `.asd` file, the Lisp reader must resolve `tycl/asdf:tycl-system` **before** `:defsystem-depends-on` loads TyCL. Add this stub before your `defsystem` form:
 
@@ -261,22 +258,25 @@ When ASDF reads a `.asd` file, the Lisp reader must resolve `tycl/asdf:tycl-syst
 
 See [docs/asdf.md](docs/asdf.md) for the full design document and a [sample project](sample/) for a working example.
 
-### Type Information Storage
+### Referencing Types from Other TyCL Projects
 
-When using `load-tycl` or `tycl transpile`, TyCL collects and stores type information during transpilation:
-- Which package
-- Which function/variable/class
-- What type it has
+When a project depends on another TyCL project, type information from the dependency is automatically available.
 
-This enables:
-1. Post-transpilation type consistency checks
-2. LSP server type information queries
-3. Cross-package type dependency tracking
-4. Type-based documentation generation
+During transpilation (`asdf:load-system` or `tycl transpile-all`), TyCL automatically loads `tycl-types.tmp` from all `tycl-system` dependencies before processing the current project. This means types defined in the dependency (functions, classes, variables) are available for type checking without any additional configuration.
 
-Type information is saved in a project-level `tycl-types.tmp` file. When using `tycl transpile-all`, the file is generated next to the `.asd` file. When using `tycl transpile` for a single file, it is generated in the current directory. The file contains multiple S-expressions (one per package) and supports merge-on-write to accumulate type information across transpilations.
+To use this, specify the dependency in `:depends-on`:
 
-### Custom Macro Support
+```lisp
+(defsystem my-app
+  :class tycl/asdf:tycl-system
+  :defsystem-depends-on (#:tycl)
+  :depends-on ("my-library")   ; another tycl-system project
+  :components (...))
+```
+
+When running `tycl transpile-all` or `tycl check-all`, dependency types are loaded from each dependency's `tycl-types.tmp` file. The type information file is located next to the dependency's `.asd` file and contains S-expressions describing all exported types (one entry per package). The file supports merge-on-write to accumulate type information across transpilations.
+
+## Custom Macro Support
 
 TyCL supports custom macros through a hook mechanism. This allows extracting type information from project-specific macro definitions.
 
@@ -341,19 +341,19 @@ Hooks can be loaded automatically from a `tycl-hooks.lisp` file placed in your p
               :slots ,(extract-entity-slots form)))))
 ```
 
-### LSP Integration
+## LSP
 
 TyCL provides a Language Server Protocol implementation for modern editor integration.
 
-#### Starting LSP Server
+### Starting LSP Server
 
 ```bash
 tycl lsp
 ```
 
-#### Editor Clients
+### Editor Clients
 
-##### VS Code
+#### VS Code
 
 A full-featured VS Code extension is available in `clients/vscode/`:
 
@@ -375,7 +375,7 @@ Development configuration example (`.vscode/settings.json`):
 
 See [clients/vscode/README.md](clients/vscode/README.md) for details.
 
-##### Emacs
+#### Emacs
 
 Install `tycl-mode` from `clients/emacs/`:
 
@@ -393,7 +393,7 @@ Install `tycl-mode` from `clients/emacs/`:
 
 See [clients/emacs/README.md](clients/emacs/README.md) for details.
 
-##### Vim/Neovim
+#### Vim/Neovim
 
 Configure with coc.nvim or other LSP clients:
 
@@ -410,7 +410,7 @@ Configure with coc.nvim or other LSP clients:
 }
 ```
 
-#### LSP Features
+### LSP Features
 
 - **Hover**: Show type information for symbols
 - **Completion**: Context-aware code completion
@@ -419,7 +419,7 @@ Configure with coc.nvim or other LSP clients:
 - **Find References**: Locate all uses of a symbol
 - **Document Symbols**: Outline view of file structure
 
-#### Startup Behavior
+### Startup Behavior
 
 When the LSP server starts, it performs the following initialization:
 
@@ -429,7 +429,7 @@ When the LSP server starts, it performs the following initialization:
 
 This ensures that LSP features (hover, completion, diagnostics) have complete type information available from the first interaction.
 
-#### Diagnostics Debounce
+### Diagnostics Debounce
 
 By default, diagnostics are debounced with a 500ms delay to avoid unnecessary CPU load during continuous typing. The debounce delay can be configured via the editor client:
 
@@ -439,6 +439,37 @@ By default, diagnostics are debounced with a 500ms delay to avoid unnecessary CP
 Setting the value to `0` disables debouncing and computes diagnostics immediately on every change. File save always triggers diagnostics immediately regardless of the debounce setting.
 
 See [docs/lsp-server.md](docs/lsp-server.md) for implementation details.
+
+## Lisp API
+
+```lisp
+;; Load and transpile a .tycl file
+(tycl:load-tycl "src/example.tycl")
+
+;; With options
+(tycl:load-tycl "src/example.tycl"
+                :output-dir "build"        ; Output directory
+                :if-exists :overwrite      ; Overwrite existing files
+                :compile t)                ; Compile before loading
+
+;; Or use shorthand
+(tycl:compile-and-load-tycl "src/example.tycl" :if-exists :overwrite)
+
+;; Transpile a single file
+(tycl:transpile-file "src/example.tycl" "src/example.lisp")
+
+;; Transpile a string
+(tycl:transpile-string
+  "(defun [add :integer] ([x :integer] [y :integer]) (+ x y))")
+
+;; Check types in a file
+(tycl:check-file "src/example.tycl")
+;; => T (no errors) or NIL (errors found)
+
+;; Check types in a string
+(tycl:check-string "(defun [add :integer] ([x :integer]) x)")
+;; => T
+```
 
 ## Development
 
