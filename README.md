@@ -167,16 +167,16 @@ Data structures with type parameters:
   ...)
 ```
 
-Define generic functions with type variables using `<T>` notation:
+Define generic functions with type variables using `<E>` notation:
 
 ```lisp
 ;; Single type variable
-(defun [identity <T> T] ([x T])
+(defun [identity <E> E] ([x E])
   x)
 ;; => (defun identity (x) x)
 
 ;; Compound return type using type variable
-(defun [wrap <T> (:list (T))] ([x T])
+(defun [wrap <E> (:list (E))] ([x E])
   (list x))
 ;; => (defun wrap (x) (list x))
 
@@ -186,7 +186,7 @@ Define generic functions with type variables using `<T>` notation:
 ;; => (defun swap-pair (p) (cons (cdr p) (car p)))
 
 ;; Type variable in parameters
-(defun [first-or-default <T> T] ([lst (:list T)] [default T])
+(defun [first-or-default <E> E] ([lst (:list E)] [default E])
   (if lst (first lst) default))
 ;; => (defun first-or-default (lst default) (if lst (first lst) default))
 ```
