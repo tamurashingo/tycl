@@ -77,7 +77,8 @@
     ;; Pass 2.5: Type checking (if enabled)
     (when tycl/type-checker:*enable-type-checking*
       (let ((tycl/type-checker:*type-check-errors* nil))
-        (tycl/type-checker:run-type-checks raw-forms)
+        (tycl/type-checker:run-type-checks
+         (mapcar (lambda (form) (cons form nil)) raw-forms))
         (when tycl/type-checker:*type-check-errors*
           (let ((errors (reverse tycl/type-checker:*type-check-errors*)))
             ;; Always warn
@@ -105,7 +106,7 @@
   "Transpile a .tycl file to a .lisp file.
    If OUTPUT-FILE is not specified, uses INPUT-FILE with .lisp extension.
    If EXTRACT-TYPES is T, extracts type information during transpilation.
-   If SAVE-TYPES is T, saves type information to .tycl-types file.
+   If SAVE-TYPES is T, saves type information to tycl-types.d.lisp file.
    OUTPUT is the stream for progress messages (default: *standard-output*).
    Returns the output file path."
   (let* ((lisp-output (or output-file
@@ -128,10 +129,10 @@
         (write-string cl-source out))
       (format output "~&Transpiled: ~A -> ~A~%" input-file lisp-output)
 
-      ;; Save type information if requested (project-level tycl-types.tmp in cwd)
+      ;; Save type information if requested (project-level tycl-types.d.lisp in cwd)
       (when (and extract-types save-types)
         (tycl:save-project-types
-         (make-pathname :name "tycl-types" :type "tmp"
+         (make-pathname :name "tycl-types.d" :type "lisp"
                         :defaults *default-pathname-defaults*)
          :output output))
 
