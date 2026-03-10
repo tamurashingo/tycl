@@ -39,7 +39,7 @@ tycl transpile src/example.tycl build/example.lisp
 
 ### tycl transpile-all
 
-Transpile all `.tycl` files defined in a `.asd` file. This scans all `tycl-file` components across all `tycl-system` definitions in the given `.asd` file, transpiles each one, and saves project-level type information to `tycl-types.tmp` next to the `.asd` file.
+Transpile all `.tycl` files defined in a `.asd` file. This scans all `tycl-file` components across all `tycl-system` definitions in the given `.asd` file, transpiles each one, and saves project-level type information to `tycl-types.d.lisp` next to the `.asd` file.
 
 ```bash
 tycl transpile-all <file.asd>
@@ -55,7 +55,7 @@ tycl check <input.tycl>
 
 ### tycl check-all
 
-Type check all `.tycl` files defined in a `.asd` file. Pre-loads `tycl-types.tmp` before checking so that dependency types are available.
+Type check all `.tycl` files defined in a `.asd` file. Pre-loads `tycl-types.d.lisp` before checking so that dependency types are available.
 
 ```bash
 tycl check-all <file.asd>
@@ -273,7 +273,7 @@ TyCL provides an ASDF extension that allows `.tycl` files to be used directly in
 |--------|---------|-------------|
 | `:tycl-output-dir` | `nil` | Output directory for transpiled/copied files. Relative to system root. When `nil`, files are generated alongside sources. |
 | `:tycl-extract-types` | `t` | Extract type information during transpilation |
-| `:tycl-save-types` | `t` | Save type information to `tycl-types.tmp` |
+| `:tycl-save-types` | `t` | Save type information to `tycl-types.d.lisp` |
 
 ### Forward Declaration Stub
 
@@ -291,7 +291,7 @@ See [docs/asdf.md](docs/asdf.md) for the full design document and a [sample proj
 
 When a project depends on another TyCL project, type information from the dependency is automatically available.
 
-During transpilation (`asdf:load-system` or `tycl transpile-all`), TyCL automatically loads `tycl-types.tmp` from all `tycl-system` dependencies before processing the current project. This means types defined in the dependency (functions, classes, variables) are available for type checking without any additional configuration.
+During transpilation (`asdf:load-system` or `tycl transpile-all`), TyCL automatically loads `tycl-types.d.lisp` from all `tycl-system` dependencies before processing the current project. This means types defined in the dependency (functions, classes, variables) are available for type checking without any additional configuration.
 
 To use this, specify the dependency in `:depends-on`:
 
@@ -303,7 +303,22 @@ To use this, specify the dependency in `:depends-on`:
   :components (...))
 ```
 
-When running `tycl transpile-all` or `tycl check-all`, dependency types are loaded from each dependency's `tycl-types.tmp` file. The type information file is located next to the dependency's `.asd` file and contains S-expressions describing all exported types (one entry per package). The file supports merge-on-write to accumulate type information across transpilations.
+When running `tycl transpile-all` or `tycl check-all`, dependency types are loaded from each dependency's `tycl-types.d.lisp` file. The type information file is located next to the dependency's `.asd` file and contains S-expressions describing all exported types (one entry per package). The file supports merge-on-write to accumulate type information across transpilations.
+
+### Publishing a TyCL Library
+
+When publishing a library written in TyCL, include `tycl-types.d.lisp` in your repository. Without this file, projects that depend on your library cannot type-check calls to your functions or classes.
+
+```bash
+# Generate tycl-types.d.lisp
+tycl transpile-all my-library.asd
+
+# Commit to your repository
+git add tycl-types.d.lisp
+git commit -m "Add type declaration file"
+```
+
+Although `tycl-types.d.lisp` is auto-generated during transpilation, it serves as the type declaration file for consumers of your library (similar to `.d.ts` in TypeScript) and should be checked into version control.
 
 ## Custom Macro Support
 
@@ -453,8 +468,8 @@ Configure with coc.nvim or other LSP clients:
 When the LSP server starts, it performs the following initialization:
 
 1. **`.asd` file discovery**: Scans the workspace root for `.asd` files
-2. **Full transpilation**: If `.asd` files with `tycl-system` definitions are found, all `.tycl` files in those systems are transpiled to generate `tycl-types.tmp`. This runs unconditionally regardless of whether `tycl-types.tmp` already exists, ensuring type information is always up-to-date.
-3. **Type information loading**: Loads `tycl-types.tmp` files from the workspace to populate the type cache
+2. **Full transpilation**: If `.asd` files with `tycl-system` definitions are found, all `.tycl` files in those systems are transpiled to generate `tycl-types.d.lisp`. This runs unconditionally regardless of whether `tycl-types.d.lisp` already exists, ensuring type information is always up-to-date.
+3. **Type information loading**: Loads `tycl-types.d.lisp` files from the workspace to populate the type cache
 
 This ensures that LSP features (hover, completion, diagnostics) have complete type information available from the first interaction.
 

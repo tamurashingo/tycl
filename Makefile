@@ -17,14 +17,11 @@ help:
 # Run all tests (unit + cli + sample)
 test: test.unit test.cli test.sample
 
-# Run unit tests using ASDF test-op (calls the :in-order-to test defined in tycl.asd)
+# Run unit tests using rove command
 test.unit:
-	@echo "Running TyCL unit tests via ASDF..."
-	@CL_SOURCE_REGISTRY="$$PWD//:$${CL_SOURCE_REGISTRY}" \
-		ros run --noinform \
-		        --eval '(ql:quickload :tycl :silent t)' \
-		        --eval '(asdf:test-system :tycl)' \
-		        --quit
+	@echo "Running TyCL unit tests via rove..."
+	@CL_SOURCE_REGISTRY="$$PWD//" \
+		rove tycl.asd
 
 # Run CLI integration tests
 test.cli: clean.cli
@@ -45,19 +42,19 @@ test.cli: clean.cli
 			echo "Error: Transpiled file $$lisp_file not found"; \
 			exit 1; \
 		fi; \
-		if [ ! -f "tycl-types.tmp" ]; then \
-			echo "Error: Project type info file tycl-types.tmp not found"; \
+		if [ ! -f "tycl-types.d.lisp" ]; then \
+			echo "Error: Project type info file tycl-types.d.lisp not found"; \
 			exit 1; \
 		fi; \
 		echo "✓ Generated $$lisp_file"; \
-		echo "✓ Generated tycl-types.tmp"; \
+		echo "✓ Generated tycl-types.d.lisp"; \
 		ros run --noinform --load "$$lisp_file" --quit || exit 1; \
 	done
 	@echo ""
 	@echo "=== Part 2: Roswell script test ==="
 	@test_file=test/cli/basic-types.tycl; \
 	lisp_file=$${test_file%.tycl}.lisp; \
-	rm -f "$$lisp_file" tycl-types.tmp; \
+	rm -f "$$lisp_file" tycl-types.d.lisp; \
 	echo "Testing: ros roswell/tycl.ros transpile $$test_file"; \
 	CL_SOURCE_REGISTRY="$$PWD//:$${CL_SOURCE_REGISTRY}" \
 		ros roswell/tycl.ros transpile "$$test_file" || exit 1; \
@@ -65,12 +62,12 @@ test.cli: clean.cli
 		echo "Error: Roswell script did not generate $$lisp_file"; \
 		exit 1; \
 	fi; \
-	if [ ! -f "tycl-types.tmp" ]; then \
-		echo "Error: Roswell script did not generate tycl-types.tmp"; \
+	if [ ! -f "tycl-types.d.lisp" ]; then \
+		echo "Error: Roswell script did not generate tycl-types.d.lisp"; \
 		exit 1; \
 	fi; \
 	echo "✓ Roswell script generated $$lisp_file"; \
-	echo "✓ Roswell script generated tycl-types.tmp"; \
+	echo "✓ Roswell script generated tycl-types.d.lisp"; \
 	echo ""; \
 	echo "Testing: ros roswell/tycl.ros check $$test_file"; \
 	CL_SOURCE_REGISTRY="$$PWD//:$${CL_SOURCE_REGISTRY}" \
@@ -95,7 +92,7 @@ test.sample:
 clean.cli:
 	@echo "Cleaning generated files from CLI tests..."
 	@rm -f test/cli/*.lisp
-	@rm -f tycl-types.tmp
+	@rm -f tycl-types.d.lisp
 	@echo "Done."
 
 # Install tycl command using roswell

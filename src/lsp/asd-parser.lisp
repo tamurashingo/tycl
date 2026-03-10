@@ -148,8 +148,8 @@
 
 (defun transpile-tycl-file (file-path)
   "Transpile a single .tycl file using the cached .asd information.
-   Saves project-level tycl-types.tmp in the current directory.
-   Returns the tycl-types.tmp path on success, or NIL on failure."
+   Saves project-level tycl-types.d.lisp in the current directory.
+   Returns the tycl-types.d.lisp path on success, or NIL on failure."
   (let ((system (find-system-for-file file-path *cached-asd-systems*)))
     (let ((lisp-path (resolve-output-path file-path system)))
       (when *debug-mode*
@@ -162,7 +162,7 @@
                                  :save-types nil
                                  :output *error-output*)
             ;; Save project-level type info
-            (let ((project-types (make-pathname :name "tycl-types" :type "tmp"
+            (let ((project-types (make-pathname :name "tycl-types.d" :type "lisp"
                                                 :defaults *default-pathname-defaults*)))
               (tycl:save-project-types project-types :output *error-output*)
               (when *debug-mode*
@@ -182,7 +182,7 @@
   "Load a .asd file and transpile all tycl-file components in all tycl-systems.
    If LOAD-DEPENDENCIES is T, load each system's :depends-on systems before transpiling.
    OUTPUT is the stream for progress messages (default: *standard-output*).
-   Saves project-level tycl-types.tmp next to the .asd file after all files are transpiled.
+   Saves project-level tycl-types.d.lisp next to the .asd file after all files are transpiled.
    Returns the number of files transpiled."
   (let ((systems (load-asd-file asd-path))
         (count 0))
@@ -235,7 +235,7 @@
   "Load a .asd file and type-check all tycl-file components in all tycl-systems.
    If LOAD-DEPENDENCIES is T, load each system's :depends-on systems before checking.
    OUTPUT is the stream for progress messages (default: *standard-output*).
-   Loads project-level tycl-types.tmp before checking so all type info is available.
+   Loads project-level tycl-types.d.lisp before checking so all type info is available.
    Returns two values: the number of files checked and the number of files with errors."
   ;; Load project type information before checking
   (let ((project-types (tycl:generate-project-type-file-path asd-path)))
@@ -260,7 +260,7 @@
                   (let ((dep-system (asdf:find-system dep nil)))
                     (when (and dep-system (typep dep-system 'tycl/asdf:tycl-system))
                       (let ((type-file (merge-pathnames
-                                        (make-pathname :name "tycl-types" :type "tmp")
+                                        (make-pathname :name "tycl-types.d" :type "lisp")
                                         (asdf:system-source-directory dep-system))))
                         (when (probe-file type-file)
                           (tycl:load-type-database type-file :output output))))))

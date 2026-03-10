@@ -20,13 +20,13 @@
   (clrhash *type-info-cache*))
 
 (defun find-tycl-types-files (directory)
-  "Find all tycl-types.tmp files in directory recursively"
+  "Find all tycl-types.d.lisp files in directory recursively"
   (when (probe-file directory)
     (let ((files '()))
       (labels ((scan-dir (dir)
                  (dolist (entry (uiop:directory-files dir))
-                   (when (and (string= (pathname-name entry) "tycl-types")
-                              (string= (pathname-type entry) "tmp"))
+                   (when (and (string= (pathname-name entry) "tycl-types.d")
+                              (string= (pathname-type entry) "lisp"))
                      (push entry files)))
                  (dolist (subdir (uiop:subdirectories dir))
                    (scan-dir subdir))))
@@ -34,7 +34,7 @@
       files)))
 
 (defun load-type-info-file (filepath)
-  "Load type information from a tycl-types.tmp file (supports multiple S-expressions)"
+  "Load type information from a tycl-types.d.lisp file (supports multiple S-expressions)"
   (when (probe-file filepath)
     (when *debug-mode*
       (format *error-output* "~%[Cache]   Reading file: ~A~%" filepath))
@@ -87,14 +87,14 @@
                                (setf (gethash symbol-name package-table) info)))))))))))))
 
 (defun load-workspace-types (root-path)
-  "Load all type information from workspace (reads tycl-types.tmp files)"
+  "Load all type information from workspace (reads tycl-types.d.lisp files)"
   (when *debug-mode*
     (format *error-output* "~%[Cache] Loading workspace types from: ~A~%" root-path))
   (setf *workspace-root* root-path)
   (clear-cache)
   (let ((files (find-tycl-types-files root-path)))
     (when *debug-mode*
-      (format *error-output* "~%[Cache] Found ~D tycl-types.tmp files~%" (length files))
+      (format *error-output* "~%[Cache] Found ~D tycl-types.d.lisp files~%" (length files))
       (dolist (file files)
         (format *error-output* "~%[Cache]   - ~A~%" file)))
     (dolist (file files)

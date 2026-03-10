@@ -1,5 +1,5 @@
 ;;;; Type Information Serialization
-;;;; Serializes type database to tycl-types.tmp project files
+;;;; Serializes type database to tycl-types.d.lisp project files
 
 (in-package #:tycl)
 
@@ -74,9 +74,9 @@
     (nreverse packages)))
 
 (defun generate-project-type-file-path (asd-path)
-  "Generate tycl-types.tmp path in the same directory as the .asd file"
-  (make-pathname :name "tycl-types"
-                 :type "tmp"
+  "Generate tycl-types.d.lisp path in the same directory as the .asd file"
+  (make-pathname :name "tycl-types.d"
+                 :type "lisp"
                  :defaults (uiop:pathname-directory-pathname asd-path)))
 
 ;;; File I/O

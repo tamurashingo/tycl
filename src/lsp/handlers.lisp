@@ -28,7 +28,7 @@
         (when *debug-mode*
           (format *error-output* "~%Error loading .asd files: ~A~%" e))))
 
-    ;; Transpile all .tycl files to generate tycl-types.tmp
+    ;; Transpile all .tycl files to generate tycl-types.d.lisp
     (when *cached-asd-files*
       (dolist (asd-file *cached-asd-files*)
         (handler-case

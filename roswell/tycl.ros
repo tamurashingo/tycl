@@ -122,7 +122,7 @@ exec ros -Q -- $0 "$@"
        (handler-case
            (progn
              ;; Load project type info from cwd if available
-             (let ((project-types (make-pathname :name "tycl-types" :type "tmp"
+             (let ((project-types (make-pathname :name "tycl-types.d" :type "lisp"
                                                  :defaults *default-pathname-defaults*)))
                (when (probe-file project-types)
                  (tycl:load-type-database project-types)))

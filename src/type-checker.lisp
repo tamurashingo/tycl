@@ -565,9 +565,9 @@
   (null *type-check-errors*))
 
 (defun load-project-type-context (directory)
-  "Load tycl-types.tmp from directory or its parent."
+  "Load tycl-types.d.lisp from directory or its parent."
   (let ((type-file (merge-pathnames
-                    (make-pathname :name "tycl-types" :type "tmp")
+                    (make-pathname :name "tycl-types.d" :type "lisp")
                     directory)))
     (when (probe-file type-file)
       (tycl:load-type-database type-file :output *error-output*)
@@ -575,7 +575,7 @@
   (let ((parent (uiop:pathname-parent-directory-pathname directory)))
     (when (and parent (not (equal parent directory)))
       (let ((type-file (merge-pathnames
-                        (make-pathname :name "tycl-types" :type "tmp")
+                        (make-pathname :name "tycl-types.d" :type "lisp")
                         parent)))
         (when (probe-file type-file)
           (tycl:load-type-database type-file :output *error-output*))))))

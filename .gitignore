@@ -1,7 +1,5 @@
 # TyCL generated files from tests
 test/cli/*.lisp
-tycl-types.tmp
-
 # Common Lisp compiled files
 *.fasl
 *.fas

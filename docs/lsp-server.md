@@ -24,7 +24,7 @@ This is the design document for TyCL's standalone LSP server.
        │
        ↓
 ┌─────────────────────┐
-│ tycl-types.tmp      │ (Project Type Information Database)
+│ tycl-types.d.lisp      │ (Project Type Information Database)
 └─────────────────────┘
 ```
 
@@ -33,7 +33,7 @@ This is the design document for TyCL's standalone LSP server.
 - **Standalone Execution**: Implemented as a Roswell script (`roswell/tycl-lsp.ros`)
 - **LSP Compliant**: Conforms to Language Server Protocol 3.17
 - **Communication**: JSON-RPC 2.0 via stdin/stdout
-- **Type Information Source**: Read from `tycl-types.tmp` project files
+- **Type Information Source**: Read from `tycl-types.d.lisp` project files
 - **Real-time Updates**: Reload type information on file changes
 
 ---
@@ -145,7 +145,7 @@ src/lsp/
    ↓
 3. Receive initialize request
    ↓
-4. Scan tycl-types.tmp files in workspace
+4. Scan tycl-types.d.lisp files in workspace
    ↓
 5. Load type information into memory (build cache)
    ↓
@@ -171,7 +171,7 @@ src/lsp/
    ↓
 2. Call TyCL transpiler
    ↓
-3. Update tycl-types.tmp file
+3. Update tycl-types.d.lisp file
    ↓
 4. Reload type information cache
    ↓
@@ -216,8 +216,8 @@ src/lsp/
 
 ### 5.2 Cache Update Strategy
 
-- **On Startup**: Load all `tycl-types.tmp` files
-- **On Save**: Reload `tycl-types.tmp` for the corresponding project
+- **On Startup**: Load all `tycl-types.d.lisp` files
+- **On Save**: Reload `tycl-types.d.lisp` for the corresponding project
 - **Periodic Check**: Monitor file system changes (optional)
 
 ---
@@ -300,7 +300,7 @@ Content-Length: 95\r\n
   location)     ; Definition location (file, line, column)
 
 (defun load-type-info-file (filepath)
-  "Load type information from tycl-types.tmp file (supports multiple S-expressions)"
+  "Load type information from tycl-types.d.lisp file (supports multiple S-expressions)"
   (with-open-file (stream filepath)
     (loop for data = (read stream nil nil)
           while data
@@ -568,7 +568,7 @@ test-hover.sh
 
 - **Type Information Cache**
   - Implemented type information loading/management in `src/lsp/cache.lisp`
-  - Load type information from `tycl-types.tmp` project files (supports multiple S-expressions per file)
+  - Load type information from `tycl-types.d.lisp` project files (supports multiple S-expressions per file)
   - Cache management per package/symbol
 
 ### ✅ Complete (Phase 2)

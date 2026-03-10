@@ -191,19 +191,19 @@
 ;;; ============================================================
 
 (deftest test-transpile-tycl-file-with-cache
-  (testing "Transpiles a .tycl file and returns the tycl-types.tmp path"
+  (testing "Transpiles a .tycl file and returns the tycl-types.d.lisp path"
     ;; Set up cache from sample project
     (let ((tycl.lsp::*cached-asd-files* nil)
           (tycl.lsp::*cached-asd-systems* nil))
       (tycl.lsp:load-and-cache-asd-files (sample-root))
       (let ((result (tycl.lsp:transpile-tycl-file (sample-math-tycl))))
         (ok result "Should return a path on success")
-        (ok (string= "tycl-types" (pathname-name result))
-            "Should return a tycl-types.tmp path")
-        (ok (string= "tmp" (pathname-type result))
-            "Should have .tmp extension")
+        (ok (string= "tycl-types.d" (pathname-name result))
+            "Should return a tycl-types.d.lisp path")
+        (ok (string= "lisp" (pathname-type result))
+            "Should have .d.lisp extension")
         (ok (probe-file result)
-            "Generated tycl-types.tmp file should exist")))))
+            "Generated tycl-types.d.lisp file should exist")))))
 
 (deftest test-transpile-tycl-file-without-cache
   (testing "Transpiles even without cached systems (fallback to source dir)"
@@ -211,8 +211,8 @@
           (tycl.lsp::*cached-asd-systems* nil))
       (let ((result (tycl.lsp:transpile-tycl-file (sample-math-tycl))))
         (ok result "Should still succeed without cache")
-        (ok (string= "tycl-types" (pathname-name result))
-            "Should return a tycl-types.tmp path")))))
+        (ok (string= "tycl-types.d" (pathname-name result))
+            "Should return a tycl-types.d.lisp path")))))
 
 (deftest test-transpile-tycl-file-nonexistent
   (testing "Returns nil for non-existent file"

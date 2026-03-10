@@ -221,7 +221,7 @@ Use type variables to define generic functions that work with multiple types.
 **Implementation notes**:
 - `<` is registered as a reader macro only on a temporary readtable created within `read-bracket-annotation`, so `(< a b)` outside brackets works normally
 - Type variables are stored in the `type-params` slot of `type-annotation` and the `type-params` slot of `function-type-info`
-- Type variables are serialized to `tycl-types.tmp` and preserved through round-trips
+- Type variables are serialized to `tycl-types.d.lisp` and preserved through round-trips
 - Type variable constraints (e.g., `<T :number>`) are planned for future implementation
 
 ### 3.5 Custom Types
@@ -406,7 +406,7 @@ Type information includes:
 
 This enables type consistency checking and LSP completion/type hints.
 
-Type information is saved in a project-level `tycl-types.tmp` file (S-expression format containing multiple packages) and `.tycl-types.json` file (JSON format), which can be reused on next load.
+Type information is saved in a project-level `tycl-types.d.lisp` file (S-expression format containing multiple packages) and `.tycl-types.json` file (JSON format), which can be reused on next load.
 
 **Intended Uses:**
 1. LSP server type information (completion, hover, diagnostics)
@@ -433,7 +433,7 @@ Type information is saved in a project-level `tycl-types.tmp` file (S-expression
   - [x] `textDocument/didSave` - File save notification
   - [x] `textDocument/didClose` - File close notification
 - [x] Type information cache (`src/lsp/cache.lisp`)
-  - [x] Load type information from `tycl-types.tmp` file
+  - [x] Load type information from `tycl-types.d.lisp` file
   - [x] Cache management per package/symbol
 - [x] Server main loop (`src/lsp/server.lisp`)
 - [x] Package definitions (`src/lsp/packages.lisp`)

@@ -31,7 +31,7 @@
     :initarg :tycl-save-types
     :initform t
     :accessor tycl-save-types-p
-    :documentation "Whether to generate .tycl-types files")
+    :documentation "Whether to save type info to tycl-types.d.lisp")
    (tycl-type-error-severity
     :initarg :tycl-type-error-severity
     :initform :warn
@@ -149,13 +149,13 @@
 ;;; ============================================================
 
 (defun load-dependency-types (system)
-  "Load tycl-types.tmp from dependency tycl-systems."
+  "Load tycl-types.d.lisp from dependency tycl-systems."
   (dolist (dep-name (asdf:system-depends-on system))
     (handler-case
         (let ((dep-system (asdf:find-system dep-name nil)))
           (when (and dep-system (typep dep-system 'tycl-system))
             (let ((type-file (merge-pathnames
-                              (make-pathname :name "tycl-types" :type "tmp")
+                              (make-pathname :name "tycl-types.d" :type "lisp")
                               (asdf:system-source-directory dep-system))))
               (when (probe-file type-file)
                 (tycl:load-type-database type-file :output *error-output*)))))
