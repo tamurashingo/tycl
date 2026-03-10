@@ -2,7 +2,7 @@
   "name": "tycl",
   "displayName": "TyCL Language Support",
   "description": "Language support for TyCL (Typed Common Lisp) with LSP integration",
-  "version": "0.1.1-20260303000001",
+  "version": "0.1.0",
   "publisher": "tycl",
   "license": "MIT",
   "repository": {
