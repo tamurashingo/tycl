@@ -13,7 +13,8 @@
            #:repeat-string
            #:truncate-string
            #:greet
-           #:format-name))
+           #:format-name
+           #:concat-all))
 
 (defpackage #:sample-project/config
   (:use #:cl)

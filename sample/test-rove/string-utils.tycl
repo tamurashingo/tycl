@@ -47,3 +47,14 @@
                "Yamada・Taro")
       "Both keyword args should work together"))
 
+(deftest concat-all-test
+  (ok (string= (concat-all ", " "a" "b" "c")
+               "a, b, c")
+      "Multiple &rest args should be joined")
+  (ok (string= (concat-all "-" "hello")
+               "hello")
+      "Single &rest arg should work")
+  (ok (string= (concat-all ", ")
+               "")
+      "No &rest args should return empty string"))
+

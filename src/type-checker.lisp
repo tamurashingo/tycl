@@ -132,7 +132,11 @@
       ((equal actual expected) t)
 
       ;; Union type: actual must be compatible with one of the union members
-      ((and (consp expected) (not (consp actual)))
+      ;; Only treat as union when all members are atoms (keywords or symbols),
+      ;; e.g. (:integer :string) or (:cons B A) with type variables.
+      ;; Generic types like (:list (:string)) contain cons elements and are NOT unions.
+      ((and (consp expected) (not (consp actual))
+            (every #'atom expected))
        (some (lambda (member-type) (type-compatible-p actual member-type)) expected))
 
       ;; Generic types: check base and parameters
@@ -229,15 +233,19 @@
 
 (defun build-param-env (params-spec env)
   "Build a type environment from a parameter list specification.
-   Handles &optional marker and default-value syntax.
+   Handles &optional, &key, and &rest markers and default-value syntax.
+   For &rest parameters, the declared element type is wrapped as (:list type).
    Returns a new env extended with parameter type bindings."
-  (let ((new-env env))
+  (let ((new-env env)
+        (kind :required))
     (dolist (param params-spec)
       (cond
-        ;; &optional / &key marker: skip
+        ;; &optional / &key / &rest marker: switch kind and skip
         ((and (symbolp param)
-              (member (symbol-name param) '("&OPTIONAL" "&KEY") :test #'string=))
-         nil)
+              (member (symbol-name param) '("&OPTIONAL" "&KEY" "&REST") :test #'string=))
+         (setf kind (cond ((string= (symbol-name param) "&OPTIONAL") :optional)
+                          ((string= (symbol-name param) "&KEY") :key)
+                          (t :rest))))
         ;; Type annotation: [x :integer]
         ((tycl/annotation:type-annotation-p param)
          (let ((name (tycl/annotation:annotation-symbol param))
@@ -245,10 +253,13 @@
            (unless (valid-type-p type)
              (record-type-error param
                                 (format nil "Invalid parameter type: ~S" type)))
-           (push (cons name type) new-env)))
+           ;; &rest param: body sees a list of the element type
+           (let ((env-type (if (eq kind :rest) (list :list (list type)) type)))
+             (push (cons name env-type) new-env))))
         ;; Regular symbol: x (untyped, treated as :t)
         ((symbolp param)
-         (push (cons param :t) new-env))
+         (let ((env-type (if (eq kind :rest) :list :t)))
+           (push (cons param env-type) new-env)))
         ;; Default-value list: ([y :string] "default")
         ((and (listp param) (not (tycl/annotation:type-annotation-p param)))
          (let ((param-spec (first param)))
@@ -259,9 +270,11 @@
                 (unless (valid-type-p type)
                   (record-type-error param-spec
                                      (format nil "Invalid parameter type: ~S" type)))
-                (push (cons name type) new-env)))
+                (let ((env-type (if (eq kind :rest) (list :list (list type)) type)))
+                  (push (cons name env-type) new-env))))
              ((symbolp param-spec)
-              (push (cons param-spec :t) new-env)))))))
+              (let ((env-type (if (eq kind :rest) :list :t)))
+                (push (cons param-spec env-type) new-env))))))))
     new-env))
 
 ;;; Form Checking Functions
@@ -459,9 +472,12 @@
                (key-params (remove-if-not (lambda (p)
                                             (eq (getf p :kind) :key))
                                           params))
+               (rest-param (find :rest params
+                                 :key (lambda (p) (getf p :kind))))
                (required-count (length required-params))
                (optional-count (length optional-params))
-               (has-keys (> (length key-params) 0)))
+               (has-keys (> (length key-params) 0))
+               (has-rest rest-param))
           ;; Check minimum argument count
           (when (< (length args) required-count)
             (record-type-error
@@ -472,6 +488,7 @@
           ;; Split args into positional and keyword parts
           (let ((positional-args '())
                 (keyword-args '())
+                (rest-args '())
                 (in-keyword-part nil))
             ;; Consume required args first
             (let ((remaining args))
@@ -479,25 +496,36 @@
                 (push (pop remaining) positional-args))
               ;; After required args, scan for keyword start
               ;; If we have &key params, look for keyword symbols
-              (if has-keys
-                  (dolist (arg remaining)
-                    (cond
-                      (in-keyword-part
-                       (push arg keyword-args))
-                      ((keywordp arg)
-                       (setf in-keyword-part t)
-                       (push arg keyword-args))
-                      (t
-                       (push arg positional-args))))
-                  ;; No &key params: all remaining are positional
-                  (dolist (arg remaining)
-                    (push arg positional-args))))
+              (cond
+                (has-keys
+                 (dolist (arg remaining)
+                   (cond
+                     (in-keyword-part
+                      (push arg keyword-args))
+                     ((keywordp arg)
+                      (setf in-keyword-part t)
+                      (push arg keyword-args))
+                     (t
+                      (push arg positional-args)))))
+                (has-rest
+                 ;; Consume optional args, then rest
+                 (let ((opt-remaining optional-count))
+                   (dolist (arg remaining)
+                     (if (> opt-remaining 0)
+                         (progn (push arg positional-args)
+                                (decf opt-remaining))
+                         (push arg rest-args)))))
+                (t
+                 ;; No &key, no &rest: all remaining are positional
+                 (dolist (arg remaining)
+                   (push arg positional-args)))))
             (setf positional-args (nreverse positional-args))
             (setf keyword-args (nreverse keyword-args))
+            (setf rest-args (nreverse rest-args))
             ;; Check positional count (required + optional)
             (let ((max-positional (+ required-count optional-count)))
-              (unless has-keys
-                ;; No &key: total positional must be in range
+              (unless (or has-keys has-rest)
+                ;; No &key, no &rest: total positional must be in range
                 (unless (<= required-count (length positional-args) max-positional)
                   (record-type-error
                    form
@@ -507,7 +535,8 @@
                        (format nil "Function ~S: expected ~D to ~D arguments, got ~D"
                                func-name required-count max-positional (length args))))
                   (return-from check-function-call-form env)))
-              (when (and has-keys (> (length positional-args) max-positional))
+              (when (and has-keys (not has-rest)
+                         (> (length positional-args) max-positional))
                 (record-type-error
                  form
                  (format nil "Function ~S: too many positional arguments, expected at most ~D"
@@ -524,6 +553,18 @@
                       arg
                       (format nil "Function ~S: argument type mismatch, expected ~S but got ~S"
                               func-name expected-type actual-type)))
+            ;; Type-check rest args
+            (when (and has-rest rest-args)
+              (let ((rest-type (getf rest-param :type)))
+                (unless (or (eq rest-type :t)
+                            (type-variable-p rest-type type-params))
+                  (dolist (arg rest-args)
+                    (let ((actual-type (infer-type arg env)))
+                      (unless (type-compatible-p actual-type rest-type)
+                        (record-type-error
+                         arg
+                         (format nil "Function ~S: &rest argument type mismatch, expected ~S but got ~S"
+                                 func-name rest-type actual-type))))))))
             ;; Validate keyword args
             (when has-keys
               ;; Must be even number (keyword-value pairs)
@@ -735,9 +776,12 @@
              (key-params (remove-if-not (lambda (p)
                                           (eq (getf p :kind) :key))
                                         params))
+             (rest-param (find :rest params
+                               :key (lambda (p) (getf p :kind))))
              (required-count (length required-params))
              (optional-count (length optional-params))
-             (has-keys (> (length key-params) 0)))
+             (has-keys (> (length key-params) 0))
+             (has-rest rest-param))
         ;; Check minimum argument count
         (when (< (length args) required-count)
           (record-type-error
@@ -748,27 +792,38 @@
         ;; Split args into positional and keyword parts
         (let ((positional-args '())
               (keyword-args '())
+              (rest-args '())
               (in-keyword-part nil))
           (let ((remaining args))
             (dotimes (i required-count)
               (push (pop remaining) positional-args))
-            (if has-keys
-                (dolist (arg remaining)
-                  (cond
-                    (in-keyword-part
-                     (push arg keyword-args))
-                    ((keywordp arg)
-                     (setf in-keyword-part t)
-                     (push arg keyword-args))
-                    (t
-                     (push arg positional-args))))
-                (dolist (arg remaining)
-                  (push arg positional-args))))
+            (cond
+              (has-keys
+               (dolist (arg remaining)
+                 (cond
+                   (in-keyword-part
+                    (push arg keyword-args))
+                   ((keywordp arg)
+                    (setf in-keyword-part t)
+                    (push arg keyword-args))
+                   (t
+                    (push arg positional-args)))))
+              (has-rest
+               (let ((opt-remaining optional-count))
+                 (dolist (arg remaining)
+                   (if (> opt-remaining 0)
+                       (progn (push arg positional-args)
+                              (decf opt-remaining))
+                       (push arg rest-args)))))
+              (t
+               (dolist (arg remaining)
+                 (push arg positional-args)))))
           (setf positional-args (nreverse positional-args))
           (setf keyword-args (nreverse keyword-args))
+          (setf rest-args (nreverse rest-args))
           ;; Check positional count
           (let ((max-positional (+ required-count optional-count)))
-            (unless has-keys
+            (unless (or has-keys has-rest)
               (unless (<= required-count (length positional-args) max-positional)
                 (record-type-error
                  `(,function-name ,@args)
@@ -789,6 +844,18 @@
                     (format nil "Type mismatch: expected ~S, got ~S"
                             expected-type actual-type))
                    (return-from check-function-call nil))
+          ;; Type-check rest args
+          (when (and has-rest rest-args)
+            (let ((rest-type (getf rest-param :type)))
+              (unless (eq rest-type :t)
+                (dolist (arg rest-args)
+                  (let ((actual-type (infer-type arg env)))
+                    (unless (type-compatible-p actual-type rest-type)
+                      (record-type-error
+                       arg
+                       (format nil "Type mismatch: expected ~S, got ~S"
+                               rest-type actual-type))
+                      (return-from check-function-call nil)))))))
           ;; Validate keyword args
           (when has-keys
             (unless (evenp (length keyword-args))

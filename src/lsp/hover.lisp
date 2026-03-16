@@ -96,7 +96,8 @@
    PARAMS is the corresponding list of parameter plists with :kind."
   (let ((result '())
         (optional-inserted nil)
-        (key-inserted nil))
+        (key-inserted nil)
+        (rest-inserted nil))
     (loop for fp in formatted-params
           for param in params
           do (when (and (not optional-inserted)
@@ -107,6 +108,10 @@
                         (eq (getf param :kind) :key))
                (push "&key" result)
                (setf key-inserted t))
+             (when (and (not rest-inserted)
+                        (eq (getf param :kind) :rest))
+               (push "&rest" result)
+               (setf rest-inserted t))
              (push fp result))
     (nreverse result)))
 

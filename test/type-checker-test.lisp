@@ -370,6 +370,137 @@
                     (f 1)")))
       (ok (null errors)))))
 
+;;; &rest parameter support
+
+(deftest test-rest-with-extra-args
+  (testing "Calling with extra &rest arguments succeeds"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x :integer] &rest [args :t]) x)
+                    (f 1 2 3 4)")))
+      (ok (null errors)))))
+
+(deftest test-rest-no-extra-args
+  (testing "Calling with only required args succeeds (&rest gets empty)"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x :integer] &rest [args :t]) x)
+                    (f 1)")))
+      (ok (null errors)))))
+
+(deftest test-rest-too-few-args
+  (testing "Calling with fewer than required args produces error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f :t] ([x :integer] [y :string] &rest [args :t]) x)
+          (f 1)")
+      (ng result)
+      (ok (not (null errors)))
+      (ok (some (lambda (err)
+                  (search "expected at least 2 arguments, got 1"
+                          (tycl/type-checker:error-message err)))
+                errors)))))
+
+(deftest test-rest-type-check
+  (testing "&rest argument type mismatch produces error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f :t] ([x :integer] &rest [args :string]) x)
+          (f 1 \"a\" 42)")
+      (ng result)
+      (ok (not (null errors)))
+      (ok (some (lambda (err)
+                  (search "type mismatch" (tycl/type-checker:error-message err)))
+                errors)))))
+
+(deftest test-rest-type-check-all-match
+  (testing "&rest arguments with correct types succeed"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x :integer] &rest [args :string]) x)
+                    (f 1 \"a\" \"b\" \"c\")")))
+      (ok (null errors)))))
+
+(deftest test-rest-only
+  (testing "&rest only function accepts any number of args"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] (&rest [args :integer]) nil)
+                    (f)
+                    (f 1)
+                    (f 1 2 3)")))
+      (ok (null errors)))))
+
+(deftest test-optional-and-rest
+  (testing "&optional + &rest mixed usage succeeds"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x :integer] &optional [y :string] &rest [args :t]) x)
+                    (f 1)
+                    (f 1 \"hello\")
+                    (f 1 \"hello\" 2 3 4)")))
+      (ok (null errors)))))
+
+;;; Generic type vs atom incompatibility
+
+(deftest test-generic-type-rejects-atom
+  (testing "Passing :string to (:list (:string)) produces type error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [process :t] ([items (:list (:string))]) items)
+          (defun [test-it :t] ([s :string]) (process s))")
+      (ng result)
+      (ok (not (null errors)))
+      (ok (some (lambda (err)
+                  (search "type mismatch" (tycl/type-checker:error-message err)))
+                errors)))))
+
+(deftest test-generic-type-accepts-same
+  (testing "Passing (:list (:string)) to (:list (:string)) succeeds"
+    (let ((errors (check-and-get-errors
+                   "(defun [process :t] ([items (:list (:string))]) items)
+                    (defun [wrap :t] ([items (:list (:string))]) (process items))")))
+      (ok (null errors)))))
+
+(deftest test-union-type-still-works
+  (testing "Union type (:string :null) still accepts :string"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x (:string :null)]) x)
+                    (f \"hello\")")))
+      (ok (null errors)))))
+
+(deftest test-rest-param-passes-to-list-generic
+  (testing "&rest param is compatible with (:list (:string)) param"
+    (let ((errors (check-and-get-errors
+                   "(defun [consume :t] ([items (:list (:string))]) items)
+                    (defun [f :t] (&rest [args :string]) (consume args))")))
+      (ok (null errors)))))
+
+;;; Generic type: hash-table
+
+(deftest test-hash-table-generic-accepts-same
+  (testing "Passing (:hash-table (:string) (:string)) to same type succeeds"
+    (let ((errors (check-and-get-errors
+                   "(defun [get-val :t] ([tbl (:hash-table (:string) (:string))]) tbl)
+                    (defun [wrap :t] ([tbl (:hash-table (:string) (:string))]) (get-val tbl))")))
+      (ok (null errors)))))
+
+(deftest test-hash-table-generic-rejects-atom
+  (testing "Passing :string to (:hash-table (:string) (:string)) produces error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [get-val :t] ([tbl (:hash-table (:string) (:string))]) tbl)
+          (defun [test-it :t] ([s :string]) (get-val s))")
+      (ng result)
+      (ok (not (null errors)))
+      (ok (some (lambda (err)
+                  (search "type mismatch" (tycl/type-checker:error-message err)))
+                errors)))))
+
+(deftest test-hash-table-generic-param-mismatch
+  (testing "(:hash-table (:string) (:integer)) is not compatible with (:hash-table (:string) (:string))"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [get-val :t] ([tbl (:hash-table (:string) (:string))]) tbl)
+          (defun [test-it :t] ([tbl (:hash-table (:string) (:integer))]) (get-val tbl))")
+      (ng result)
+      (ok (not (null errors))))))
+
 ;;; Class subtype compatibility
 
 (deftest test-class-subtype-reverse

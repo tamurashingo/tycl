@@ -303,7 +303,8 @@
    DISPLAY-LIST contains display values (types or names) corresponding to PARAMS."
   (let ((result '())
         (optional-inserted nil)
-        (key-inserted nil))
+        (key-inserted nil)
+        (rest-inserted nil))
     (loop for item in display-list
           for param in params
           do (when (and (not optional-inserted)
@@ -314,6 +315,10 @@
                         (eq (getf param :kind) :key))
                (push "&KEY" result)
                (setf key-inserted t))
+             (when (and (not rest-inserted)
+                        (eq (getf param :kind) :rest))
+               (push "&REST" result)
+               (setf rest-inserted t))
              (push item result))
     (nreverse result)))
 

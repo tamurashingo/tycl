@@ -82,6 +82,8 @@
          (setf kind :optional))
         ((and (symbolp param) (string= (symbol-name param) "&KEY"))
          (setf kind :key))
+        ((and (symbolp param) (string= (symbol-name param) "&REST"))
+         (setf kind :rest))
         ;; Type annotation: [x :integer]
         ((tycl/annotation:type-annotation-p param)
          (push (list :name (string-upcase (symbol-name (tycl/annotation:annotation-symbol param)))
@@ -217,7 +219,7 @@
   "Extract method specializers from parameter list"
   (loop for param in params-spec
         unless (and (symbolp param)
-                    (member (symbol-name param) '("&OPTIONAL" "&KEY") :test #'string=))
+                    (member (symbol-name param) '("&OPTIONAL" "&KEY" "&REST") :test #'string=))
         collect (let ((p (if (and (listp param) (not (tycl/annotation:type-annotation-p param)))
                              (first param)
                              param)))

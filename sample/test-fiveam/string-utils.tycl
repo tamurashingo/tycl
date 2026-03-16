@@ -49,4 +49,15 @@
                "Yamada・Taro")
       "Both keyword args should work together"))
 
+(test concat-all-test
+  (is (string= (sample-project/string-utils:concat-all ", " "a" "b" "c")
+               "a, b, c")
+      "Multiple &rest args should be joined")
+  (is (string= (sample-project/string-utils:concat-all "-" "hello")
+               "hello")
+      "Single &rest arg should work")
+  (is (string= (sample-project/string-utils:concat-all ", ")
+               "")
+      "No &rest args should return empty string"))
+
 ;;; vim: set filetype=lisp :
