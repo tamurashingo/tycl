@@ -99,6 +99,63 @@ TyCL uses `[]` (brackets) for type annotations:
   (square 5))
 ```
 
+### Lambda List Keywords
+
+TyCL supports `&optional`, `&key`, and `&rest` parameters with type annotations. The type checker validates argument counts and types accordingly.
+
+#### &optional
+
+Optional parameters can be omitted by the caller. Default values are supported.
+
+```lisp
+(defun [greet :string] ([name :string]
+                        &optional ([greeting :string] "Hello") [suffix :string])
+  (let ((base (concatenate 'string greeting ", " name "!")))
+    (if suffix
+        (concatenate 'string base " " suffix)
+        base)))
+
+(greet "Alice")                      ; OK — greeting defaults to "Hello", suffix is nil
+(greet "Alice" "Hi")                 ; OK
+(greet "Alice" "Hey" "How are you?") ; OK
+(greet "Alice" 42)                   ; Type error — expected :string, got :integer
+```
+
+#### &key
+
+Keyword arguments can be passed in any order. Unknown keywords and type mismatches are detected.
+
+```lisp
+(defun [format-name :string] ([first-name :string] [last-name :string]
+                               &key ([separator :string] " ") ([order :keyword] :western))
+  ...)
+
+(format-name "John" "Doe")                    ; OK
+(format-name "John" "Doe" :separator ", ")     ; OK
+(format-name "John" "Doe" :order :eastern)     ; OK
+(format-name "John" "Doe" :unknown "x")        ; Error — unknown keyword
+```
+
+#### &rest
+
+Rest parameters collect all remaining arguments into a list. The type annotation specifies the **element type** — inside the function body, the parameter is treated as `(:list (:element-type))`.
+
+```lisp
+(defun [concat-all :string] ([separator :string] &rest [strings :string])
+  ;; strings has type (:list (:string)) inside the body
+  (format nil (concatenate 'string "~{~A~^" separator "~}") strings))
+
+(concat-all ", " "a" "b" "c")  ; OK — each rest arg is checked as :string
+(concat-all ", " "a" 42)       ; Type error — 42 is not :string
+```
+
+`&optional`, `&key`, and `&rest` can be combined:
+
+```lisp
+(defun [f :t] ([x :integer] &optional [y :string] &key [verbose :boolean]) ...)
+(defun [g :t] ([x :integer] &optional [y :string] &rest [args :t]) ...)
+```
+
 ### Types
 
 #### Basic Types
@@ -368,7 +425,7 @@ Declaration files are automatically loaded during transpilation, type checking, 
 ### Notes
 
 - Use **canonical package names** in `in-package` (e.g., `#:common-lisp` instead of `#:cl`), because TyCL stores package names as written and the type checker uses canonical names for lookup.
-- For CL functions with `&rest`, `&optional`, or `&key` parameters, only declare the required parameters — TyCL validates argument count against the declared parameter list.
+- `&optional`, `&key`, and `&rest` parameters are supported in declaration files. For `&rest`, the type annotation specifies the element type (e.g., `&rest [args :string]`).
 - Type parameter syntax uses `{T}` notation inside `[...]` annotations (e.g., `[identity {T} T]`).
 
 See the [sample project](sample/tycl-declarations/) for a working example.
