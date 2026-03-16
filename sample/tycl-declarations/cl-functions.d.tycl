@@ -7,8 +7,12 @@
 ;;;;
 ;;;; Note: Symbols starting with < or > cannot be used in [...] annotations
 ;;;; because those characters are reserved for type parameter syntax <T>.
+;;;;
+;;;; Note: CL functions with &rest/&optional/&key parameters should only
+;;;; declare the required parameters, since TyCL's type checker validates
+;;;; argument count against the declared parameter list.
 
-(in-package #:cl)
+(in-package #:common-lisp)
 
 ;;; ============================================================
 ;;; Arithmetic
@@ -20,20 +24,14 @@
 (defun [/ :number] ([a :number] [b :number]))
 (defun [1+ :number] ([n :number]))
 (defun [1- :number] ([n :number]))
-(defun [floor :integer] ([number :number] [divisor :number]))
-(defun [mod :number] ([number :number] [divisor :number]))
-(defun [abs :number] ([n :number]))
 
 ;;; ============================================================
 ;;; Predicates
 ;;; ============================================================
 
-(defun [= :boolean] ([a :number] [b :number]))
 (defun [zerop :boolean] ([n :number]))
 (defun [null :boolean] ([obj :t]))
 (defun [not :boolean] ([obj :t]))
-(defun [equal :boolean] ([a :t] [b :t]))
-(defun [equalp :boolean] ([a :t] [b :t]))
 (defun [numberp :boolean] ([obj :t]))
 (defun [stringp :boolean] ([obj :t]))
 (defun [listp :boolean] ([obj :t]))
@@ -43,48 +41,22 @@
 ;;; ============================================================
 
 (defun [cons :cons] ([car :t] [cdr :t]))
-(defun [car :t] ([cons :cons]))
-(defun [cdr :t] ([cons :cons]))
-(defun [first :t] ([list :list]))
+(defun [car :t] ([list :t]))
+(defun [cdr :t] ([list :t]))
+(defun [first :t] ([list :t]))
 (defun [second :t] ([list :list]))
 (defun [third :t] ([list :list]))
 (defun [rest :list] ([list :list]))
 (defun [last :list] ([list :list]))
 (defun [nth :t] ([n :integer] [list :list]))
 (defun [length :integer] ([sequence :t]))
-(defun [append :list] ([list1 :list] [list2 :list]))
 (defun [reverse :list] ([sequence :list]))
-(defun [list :list] ([item :t]))
-(defun [push :t] ([item :t] [place :list]))
-(defun [member :list] ([item :t] [list :list]))
-
-;;; ============================================================
-;;; Higher-Order Functions
-;;; ============================================================
-
-(defun [mapcar :list] ([function :function] [list :list]))
-(defun [reduce :t] ([function :function] [sequence :list]))
-(defun [remove-if :list] ([predicate :function] [sequence :list]))
-(defun [remove-if-not :list] ([predicate :function] [sequence :list]))
-(defun [find :t] ([item :t] [sequence :list]))
-(defun [funcall :t] ([function :function] [arg :t]))
-(defun [apply :t] ([function :function] [args :list]))
 
 ;;; ============================================================
 ;;; String Operations
 ;;; ============================================================
 
-(defun [concatenate :string] ([result-type :symbol] [seq1 :string] [seq2 :string]))
-(defun [subseq :string] ([sequence :string] [start :integer] [end :integer]))
 (defun [string-upcase :string] ([string :string]))
 (defun [string-downcase :string] ([string :string]))
-(defun [string= :boolean] ([string1 :string] [string2 :string]))
-(defun [format (:string :null)] ([destination :t] [control-string :string]))
-
-;;; ============================================================
-;;; CLOS
-;;; ============================================================
-
-(defun [make-instance :t] ([class :symbol]))
 
 ;;; vim: set filetype=lisp :
