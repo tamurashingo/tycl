@@ -173,7 +173,11 @@
          (extract-types (tycl-extract-types-p system))
          (save-types (tycl-save-types-p system)))
     (when extract-types
-      (load-dependency-types system))
+      (load-dependency-types system)
+      ;; Load declaration files for external libraries
+      (tycl:find-and-load-declarations
+       (asdf:system-source-directory system)
+       :output *error-output*))
     (ensure-directories-exist output-file)
     (tycl:transpile-file input-file output-file
                          :extract-types extract-types

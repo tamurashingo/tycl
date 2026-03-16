@@ -118,6 +118,12 @@
     (when extract-types
       (tycl:find-and-load-hooks (uiop:pathname-directory-pathname input-file)))
 
+    ;; Load declaration files for external libraries
+    (when extract-types
+      (tycl:find-and-load-declarations
+       (uiop:pathname-directory-pathname input-file)
+       :output *error-output*))
+
     ;; Transpile
     (let* ((tycl-source (uiop:read-file-string input-file))
            (cl-source (transpile-string tycl-source :extract-types extract-types)))

@@ -122,6 +122,12 @@
            #:clear-hook-configuration
            ;; Hooks loading
            #:load-tycl-hooks
+           ;; Declaration files
+           #:load-declaration-file
+           #:load-declarations-directory
+           #:find-and-load-declarations
+           #:clear-loaded-declarations
+           #:*declaration-search-paths*
            ;; LSP integration
            #:serialize-type-database-json
            #:save-type-database-json
