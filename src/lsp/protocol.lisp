@@ -15,6 +15,27 @@
                   (string-equal (subseq header 0 15) "Content-Length:"))
         do (return (parse-integer (string-trim " " (subseq header 15))))))
 
+(defun utf8-char-byte-count (char)
+  "Return the number of bytes needed to encode CHAR in UTF-8."
+  (let ((code (char-code char)))
+    (cond
+      ((<= code #x7F) 1)
+      ((<= code #x7FF) 2)
+      ((<= code #xFFFF) 3)
+      (t 4))))
+
+(defun read-utf8-content (stream byte-count)
+  "Read BYTE-COUNT bytes worth of UTF-8 content from a character STREAM.
+   Content-Length in LSP is specified in bytes, but character streams
+   read characters. This function reads characters until the specified
+   number of UTF-8 bytes have been consumed."
+  (with-output-to-string (out)
+    (let ((bytes-read 0))
+      (loop while (< bytes-read byte-count)
+            for char = (read-char stream)
+            do (write-char char out)
+               (incf bytes-read (utf8-char-byte-count char))))))
+
 (defun read-json-rpc-message (stream)
   "Read a complete JSON-RPC message from stream"
   (handler-case
@@ -26,8 +47,7 @@
           (when *debug-mode*
             (format *error-output* "~%Content-Length: ~A~%" content-length))
           (when content-length
-            (let ((buffer (make-string content-length)))
-              (read-sequence buffer stream)
+            (let ((buffer (read-utf8-content stream content-length)))
               (when *debug-mode*
                 (format *error-output* "~%<<< ~A~%" buffer))
               (cl-json:decode-json-from-string buffer)))))

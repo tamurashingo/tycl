@@ -249,7 +249,7 @@
       (ng result)
       (ok (not (null errors)))
       (ok (some (lambda (err)
-                  (search "expected 1 to 2 arguments, got 0"
+                  (search "expected at least 1 arguments, got 0"
                           (tycl/type-checker:error-message err)))
                 errors)))))
 
@@ -287,6 +287,86 @@
   (testing "Optional parameter with default value syntax works"
     (let ((errors (check-and-get-errors
                    "(defun [f :string] ([x :integer] &optional ([y :string] \"default\")) y)
+                    (f 1)")))
+      (ok (null errors)))))
+
+;;; &key parameter support
+
+(deftest test-key-with-args
+  (testing "Calling with &key arguments succeeds"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x :integer] &key [test :function]) x)
+                    (f 1 :test #'equal)")))
+      (ok (null errors)))))
+
+(deftest test-key-omitted
+  (testing "Calling without &key arguments succeeds"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x :integer] &key [test :function]) x)
+                    (f 1)")))
+      (ok (null errors)))))
+
+(deftest test-key-unknown-keyword
+  (testing "Unknown keyword argument produces error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f :t] ([x :integer] &key [test :function]) x)
+          (f 1 :unknown #'equal)")
+      (ng result)
+      (ok (not (null errors)))
+      (ok (some (lambda (err)
+                  (search "unknown keyword argument" (tycl/type-checker:error-message err)))
+                errors)))))
+
+(deftest test-key-type-mismatch
+  (testing "Keyword argument type mismatch produces error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f :t] ([x :integer] &key [verbose :boolean]) x)
+          (f 1 :verbose 42)")
+      (ng result)
+      (ok (not (null errors)))
+      (ok (some (lambda (err)
+                  (search "type mismatch" (tycl/type-checker:error-message err)))
+                errors)))))
+
+(deftest test-key-order-swap
+  (testing "Keyword arguments in different order succeeds"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x :integer] &key [a :string] [b :integer]) x)
+                    (f 1 :b 42 :a \"hello\")")))
+      (ok (null errors)))))
+
+(deftest test-optional-and-key
+  (testing "&optional + &key mixed usage succeeds"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x :integer] &optional [y :string] &key [verbose :boolean]) x)
+                    (f 1 \"hello\" :verbose t)")))
+      (ok (null errors)))))
+
+(deftest test-key-odd-number
+  (testing "Odd number of keyword arguments produces error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f :t] ([x :integer] &key [test :function]) x)
+          (f 1 :test)")
+      (ng result)
+      (ok (not (null errors)))
+      (ok (some (lambda (err)
+                  (search "odd number" (tycl/type-checker:error-message err)))
+                errors)))))
+
+(deftest test-key-only-no-args
+  (testing "&key only function called with no args succeeds"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] (&key [test :function] [size :integer]) nil)
+                    (f)")))
+      (ok (null errors)))))
+
+(deftest test-key-with-default-value
+  (testing "&key with default value succeeds"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x :integer] &key ([test :function] #'eql)) x)
                     (f 1)")))
       (ok (null errors)))))
 

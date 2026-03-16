@@ -91,17 +91,22 @@
     (t template)))
 
 (defun insert-optional-marker-in-param-strings (formatted-params params)
-  "Insert \"&optional\" string before the first optional parameter.
+  "Insert \"&optional\" and \"&key\" strings before the first parameter of each kind.
    FORMATTED-PARAMS is a list of already-formatted parameter strings.
    PARAMS is the corresponding list of parameter plists with :kind."
   (let ((result '())
-        (optional-inserted nil))
+        (optional-inserted nil)
+        (key-inserted nil))
     (loop for fp in formatted-params
           for param in params
           do (when (and (not optional-inserted)
                         (eq (getf param :kind) :optional))
                (push "&optional" result)
                (setf optional-inserted t))
+             (when (and (not key-inserted)
+                        (eq (getf param :kind) :key))
+               (push "&key" result)
+               (setf key-inserted t))
              (push fp result))
     (nreverse result)))
 

@@ -7,7 +7,8 @@
   (:export #:join-strings
            #:repeat-string
            #:truncate-string
-           #:greet))
+           #:greet
+           #:format-name))
 (in-package #:sample-project/string-utils)
 
 (defun [join-strings :string] ([strings :list] [separator :string])
@@ -30,5 +31,12 @@
     (if suffix
         (concatenate 'string base " " suffix)
         base)))
+
+(defun [format-name :string] ([first-name :string] [last-name :string]
+                               &key ([separator :string] " ") ([order :keyword] :western))
+  "Format a full name with optional separator and order"
+  (if (eq order :eastern)
+      (concatenate 'string last-name separator first-name)
+      (concatenate 'string first-name separator last-name)))
 
 ;;; vim: set filetype=lisp :

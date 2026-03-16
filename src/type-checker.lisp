@@ -234,8 +234,9 @@
   (let ((new-env env))
     (dolist (param params-spec)
       (cond
-        ;; &optional marker: skip
-        ((and (symbolp param) (string= (symbol-name param) "&OPTIONAL"))
+        ;; &optional / &key marker: skip
+        ((and (symbolp param)
+              (member (symbol-name param) '("&OPTIONAL" "&KEY") :test #'string=))
          nil)
         ;; Type annotation: [x :integer]
         ((tycl/annotation:type-annotation-p param)
@@ -449,31 +450,114 @@
       (when (and func-info (typep func-info 'tycl:function-type-info))
         (let* ((params (tycl:function-params func-info))
                (type-params (tycl:function-type-params func-info))
-               (required-count (count-if (lambda (p)
-                                           (member (getf p :kind) '(:required nil)))
-                                         params))
-               (total-count (length params)))
-          ;; Check argument count (range check for optional params)
-          (unless (<= required-count (length args) total-count)
+               (required-params (remove-if-not (lambda (p)
+                                                 (member (getf p :kind) '(:required nil)))
+                                               params))
+               (optional-params (remove-if-not (lambda (p)
+                                                 (eq (getf p :kind) :optional))
+                                               params))
+               (key-params (remove-if-not (lambda (p)
+                                            (eq (getf p :kind) :key))
+                                          params))
+               (required-count (length required-params))
+               (optional-count (length optional-params))
+               (has-keys (> (length key-params) 0)))
+          ;; Check minimum argument count
+          (when (< (length args) required-count)
             (record-type-error
              form
-             (if (= required-count total-count)
-                 (format nil "Function ~S: expected ~D arguments, got ~D"
-                         func-name total-count (length args))
-                 (format nil "Function ~S: expected ~D to ~D arguments, got ~D"
-                         func-name required-count total-count (length args))))
+             (format nil "Function ~S: expected at least ~D arguments, got ~D"
+                     func-name required-count (length args)))
             (return-from check-function-call-form env))
-          ;; Check argument types (skip type variable parameters)
-          (loop for arg in args
-                for param in params
-                for expected-type = (getf param :type)
-                for actual-type = (infer-type arg env)
-                unless (or (type-variable-p expected-type type-params)
-                           (type-compatible-p actual-type expected-type))
-                do (record-type-error
-                    arg
-                    (format nil "Function ~S: argument type mismatch, expected ~S but got ~S"
-                            func-name expected-type actual-type))))))
+          ;; Split args into positional and keyword parts
+          (let ((positional-args '())
+                (keyword-args '())
+                (in-keyword-part nil))
+            ;; Consume required args first
+            (let ((remaining args))
+              (dotimes (i required-count)
+                (push (pop remaining) positional-args))
+              ;; After required args, scan for keyword start
+              ;; If we have &key params, look for keyword symbols
+              (if has-keys
+                  (dolist (arg remaining)
+                    (cond
+                      (in-keyword-part
+                       (push arg keyword-args))
+                      ((keywordp arg)
+                       (setf in-keyword-part t)
+                       (push arg keyword-args))
+                      (t
+                       (push arg positional-args))))
+                  ;; No &key params: all remaining are positional
+                  (dolist (arg remaining)
+                    (push arg positional-args))))
+            (setf positional-args (nreverse positional-args))
+            (setf keyword-args (nreverse keyword-args))
+            ;; Check positional count (required + optional)
+            (let ((max-positional (+ required-count optional-count)))
+              (unless has-keys
+                ;; No &key: total positional must be in range
+                (unless (<= required-count (length positional-args) max-positional)
+                  (record-type-error
+                   form
+                   (if (= required-count max-positional)
+                       (format nil "Function ~S: expected ~D arguments, got ~D"
+                               func-name max-positional (length args))
+                       (format nil "Function ~S: expected ~D to ~D arguments, got ~D"
+                               func-name required-count max-positional (length args))))
+                  (return-from check-function-call-form env)))
+              (when (and has-keys (> (length positional-args) max-positional))
+                (record-type-error
+                 form
+                 (format nil "Function ~S: too many positional arguments, expected at most ~D"
+                         func-name max-positional))
+                (return-from check-function-call-form env)))
+            ;; Type-check positional args
+            (loop for arg in positional-args
+                  for param in (append required-params optional-params)
+                  for expected-type = (getf param :type)
+                  for actual-type = (infer-type arg env)
+                  unless (or (type-variable-p expected-type type-params)
+                             (type-compatible-p actual-type expected-type))
+                  do (record-type-error
+                      arg
+                      (format nil "Function ~S: argument type mismatch, expected ~S but got ~S"
+                              func-name expected-type actual-type)))
+            ;; Validate keyword args
+            (when has-keys
+              ;; Must be even number (keyword-value pairs)
+              (unless (evenp (length keyword-args))
+                (record-type-error
+                 form
+                 (format nil "Function ~S: odd number of keyword arguments" func-name))
+                (return-from check-function-call-form env))
+              ;; Check each keyword pair
+              (loop for (key val) on keyword-args by #'cddr
+                    do (unless (keywordp key)
+                         (record-type-error
+                          key
+                          (format nil "Function ~S: expected keyword argument, got ~S"
+                                  func-name key))
+                         (return-from check-function-call-form env))
+                       (let* ((key-name (string-upcase (symbol-name key)))
+                              (matching-param (find key-name key-params
+                                                    :key (lambda (p) (getf p :name))
+                                                    :test #'string=)))
+                         (unless matching-param
+                           (record-type-error
+                            key
+                            (format nil "Function ~S: unknown keyword argument ~S"
+                                    func-name key))
+                           (return-from check-function-call-form env))
+                         (let ((expected-type (getf matching-param :type))
+                               (actual-type (infer-type val env)))
+                           (unless (or (type-variable-p expected-type type-params)
+                                       (type-compatible-p actual-type expected-type))
+                             (record-type-error
+                              val
+                              (format nil "Function ~S: keyword argument ~S type mismatch, expected ~S but got ~S"
+                                      func-name key expected-type actual-type)))))))))))
     ;; Also check against local env
     (let ((local-info (cdr (assoc func-name env))))
       (when (and (consp local-info) (eq (first local-info) :function))
@@ -642,30 +726,95 @@
   (let ((func-info (resolve-type-info-for-symbol function-name)))
     (when (and func-info (typep func-info 'tycl:function-type-info))
       (let* ((params (tycl:function-params func-info))
-             (required-count (count-if (lambda (p)
-                                         (member (getf p :kind) '(:required nil)))
-                                       params))
-             (total-count (length params)))
-        ;; Check argument count (range check for optional params)
-        (unless (<= required-count (length args) total-count)
+             (required-params (remove-if-not (lambda (p)
+                                               (member (getf p :kind) '(:required nil)))
+                                             params))
+             (optional-params (remove-if-not (lambda (p)
+                                               (eq (getf p :kind) :optional))
+                                             params))
+             (key-params (remove-if-not (lambda (p)
+                                          (eq (getf p :kind) :key))
+                                        params))
+             (required-count (length required-params))
+             (optional-count (length optional-params))
+             (has-keys (> (length key-params) 0)))
+        ;; Check minimum argument count
+        (when (< (length args) required-count)
           (record-type-error
            `(,function-name ,@args)
-           (if (= required-count total-count)
-               (format nil "Expected ~D arguments, got ~D"
-                       total-count (length args))
-               (format nil "Expected ~D to ~D arguments, got ~D"
-                       required-count total-count (length args))))
+           (format nil "Expected at least ~D arguments, got ~D"
+                   required-count (length args)))
           (return-from check-function-call nil))
-
-        ;; Check argument types
-        (loop for arg in args
-              for param in params
-              for expected-type = (getf param :type)
-              for actual-type = (infer-type arg env)
-              unless (type-compatible-p actual-type expected-type)
-              do (record-type-error
-                  arg
-                  (format nil "Type mismatch: expected ~S, got ~S"
-                          expected-type actual-type))
-                 (return-from check-function-call nil))))
+        ;; Split args into positional and keyword parts
+        (let ((positional-args '())
+              (keyword-args '())
+              (in-keyword-part nil))
+          (let ((remaining args))
+            (dotimes (i required-count)
+              (push (pop remaining) positional-args))
+            (if has-keys
+                (dolist (arg remaining)
+                  (cond
+                    (in-keyword-part
+                     (push arg keyword-args))
+                    ((keywordp arg)
+                     (setf in-keyword-part t)
+                     (push arg keyword-args))
+                    (t
+                     (push arg positional-args))))
+                (dolist (arg remaining)
+                  (push arg positional-args))))
+          (setf positional-args (nreverse positional-args))
+          (setf keyword-args (nreverse keyword-args))
+          ;; Check positional count
+          (let ((max-positional (+ required-count optional-count)))
+            (unless has-keys
+              (unless (<= required-count (length positional-args) max-positional)
+                (record-type-error
+                 `(,function-name ,@args)
+                 (if (= required-count max-positional)
+                     (format nil "Expected ~D arguments, got ~D"
+                             max-positional (length args))
+                     (format nil "Expected ~D to ~D arguments, got ~D"
+                             required-count max-positional (length args))))
+                (return-from check-function-call nil))))
+          ;; Check positional arg types
+          (loop for arg in positional-args
+                for param in (append required-params optional-params)
+                for expected-type = (getf param :type)
+                for actual-type = (infer-type arg env)
+                unless (type-compatible-p actual-type expected-type)
+                do (record-type-error
+                    arg
+                    (format nil "Type mismatch: expected ~S, got ~S"
+                            expected-type actual-type))
+                   (return-from check-function-call nil))
+          ;; Validate keyword args
+          (when has-keys
+            (unless (evenp (length keyword-args))
+              (record-type-error
+               `(,function-name ,@args)
+               (format nil "Odd number of keyword arguments"))
+              (return-from check-function-call nil))
+            (loop for (key val) on keyword-args by #'cddr
+                  do (unless (keywordp key)
+                       (record-type-error key
+                                          (format nil "Expected keyword argument, got ~S" key))
+                       (return-from check-function-call nil))
+                     (let* ((key-name (string-upcase (symbol-name key)))
+                            (matching-param (find key-name key-params
+                                                  :key (lambda (p) (getf p :name))
+                                                  :test #'string=)))
+                       (unless matching-param
+                         (record-type-error key
+                                            (format nil "Unknown keyword argument ~S" key))
+                         (return-from check-function-call nil))
+                       (let ((expected-type (getf matching-param :type))
+                             (actual-type (infer-type val env)))
+                         (unless (type-compatible-p actual-type expected-type)
+                           (record-type-error
+                            val
+                            (format nil "Type mismatch: expected ~S, got ~S"
+                                    expected-type actual-type))
+                           (return-from check-function-call nil)))))))))
     t))

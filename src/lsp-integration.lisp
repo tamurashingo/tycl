@@ -299,16 +299,21 @@
       (:documentation . ""))))
 
 (defun insert-optional-marker (display-list params)
-  "Insert \"&OPTIONAL\" before the first optional parameter's display item.
+  "Insert \"&OPTIONAL\" and \"&KEY\" markers before the first parameter of each kind.
    DISPLAY-LIST contains display values (types or names) corresponding to PARAMS."
   (let ((result '())
-        (optional-inserted nil))
+        (optional-inserted nil)
+        (key-inserted nil))
     (loop for item in display-list
           for param in params
           do (when (and (not optional-inserted)
                         (eq (getf param :kind) :optional))
                (push "&OPTIONAL" result)
                (setf optional-inserted t))
+             (when (and (not key-inserted)
+                        (eq (getf param :kind) :key))
+               (push "&KEY" result)
+               (setf key-inserted t))
              (push item result))
     (nreverse result)))
 

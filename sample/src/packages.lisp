@@ -12,7 +12,8 @@
   (:export #:join-strings
            #:repeat-string
            #:truncate-string
-           #:greet))
+           #:greet
+           #:format-name))
 
 (defpackage #:sample-project/config
   (:use #:cl)

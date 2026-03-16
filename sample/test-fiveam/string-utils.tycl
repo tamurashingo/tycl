@@ -35,4 +35,18 @@
                "Hey, Charlie! How are you?")
       "Optional suffix without default value should work"))
 
+(test format-name-test
+  (is (string= (sample-project/string-utils:format-name "John" "Doe")
+               "John Doe")
+      "Default format should be western with space separator")
+  (is (string= (sample-project/string-utils:format-name "John" "Doe" :separator ", ")
+               "John, Doe")
+      "Custom separator should work")
+  (is (string= (sample-project/string-utils:format-name "Taro" "Yamada" :order :eastern)
+               "Yamada Taro")
+      "Eastern order should put last name first")
+  (is (string= (sample-project/string-utils:format-name "Taro" "Yamada" :separator "・" :order :eastern)
+               "Yamada・Taro")
+      "Both keyword args should work together"))
+
 ;;; vim: set filetype=lisp :

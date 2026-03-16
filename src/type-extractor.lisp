@@ -77,9 +77,11 @@
         (kind :required))
     (dolist (param params-spec)
       (cond
-        ;; &optional marker: switch kind and skip
+        ;; &optional / &key marker: switch kind and skip
         ((and (symbolp param) (string= (symbol-name param) "&OPTIONAL"))
          (setf kind :optional))
+        ((and (symbolp param) (string= (symbol-name param) "&KEY"))
+         (setf kind :key))
         ;; Type annotation: [x :integer]
         ((tycl/annotation:type-annotation-p param)
          (push (list :name (string-upcase (symbol-name (tycl/annotation:annotation-symbol param)))
@@ -214,7 +216,8 @@
 (defun extract-method-specializers (params-spec)
   "Extract method specializers from parameter list"
   (loop for param in params-spec
-        unless (and (symbolp param) (string= (symbol-name param) "&OPTIONAL"))
+        unless (and (symbolp param)
+                    (member (symbol-name param) '("&OPTIONAL" "&KEY") :test #'string=))
         collect (let ((p (if (and (listp param) (not (tycl/annotation:type-annotation-p param)))
                              (first param)
                              param)))
