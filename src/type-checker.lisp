@@ -229,10 +229,14 @@
 
 (defun build-param-env (params-spec env)
   "Build a type environment from a parameter list specification.
+   Handles &optional marker and default-value syntax.
    Returns a new env extended with parameter type bindings."
   (let ((new-env env))
     (dolist (param params-spec)
       (cond
+        ;; &optional marker: skip
+        ((and (symbolp param) (string= (symbol-name param) "&OPTIONAL"))
+         nil)
         ;; Type annotation: [x :integer]
         ((tycl/annotation:type-annotation-p param)
          (let ((name (tycl/annotation:annotation-symbol param))
@@ -243,7 +247,20 @@
            (push (cons name type) new-env)))
         ;; Regular symbol: x (untyped, treated as :t)
         ((symbolp param)
-         (push (cons param :t) new-env))))
+         (push (cons param :t) new-env))
+        ;; Default-value list: ([y :string] "default")
+        ((and (listp param) (not (tycl/annotation:type-annotation-p param)))
+         (let ((param-spec (first param)))
+           (cond
+             ((tycl/annotation:type-annotation-p param-spec)
+              (let ((name (tycl/annotation:annotation-symbol param-spec))
+                    (type (tycl/annotation:annotation-type param-spec)))
+                (unless (valid-type-p type)
+                  (record-type-error param-spec
+                                     (format nil "Invalid parameter type: ~S" type)))
+                (push (cons name type) new-env)))
+             ((symbolp param-spec)
+              (push (cons param-spec :t) new-env)))))))
     new-env))
 
 ;;; Form Checking Functions
@@ -430,14 +447,21 @@
     ;; Check against type database
     (let ((func-info (resolve-type-info-for-symbol func-name)))
       (when (and func-info (typep func-info 'tycl:function-type-info))
-        (let ((params (tycl:function-params func-info))
-              (type-params (tycl:function-type-params func-info)))
-          ;; Check argument count
-          (unless (= (length args) (length params))
+        (let* ((params (tycl:function-params func-info))
+               (type-params (tycl:function-type-params func-info))
+               (required-count (count-if (lambda (p)
+                                           (member (getf p :kind) '(:required nil)))
+                                         params))
+               (total-count (length params)))
+          ;; Check argument count (range check for optional params)
+          (unless (<= required-count (length args) total-count)
             (record-type-error
              form
-             (format nil "Function ~S: expected ~D arguments, got ~D"
-                     func-name (length params) (length args)))
+             (if (= required-count total-count)
+                 (format nil "Function ~S: expected ~D arguments, got ~D"
+                         func-name total-count (length args))
+                 (format nil "Function ~S: expected ~D to ~D arguments, got ~D"
+                         func-name required-count total-count (length args))))
             (return-from check-function-call-form env))
           ;; Check argument types (skip type variable parameters)
           (loop for arg in args
@@ -617,13 +641,20 @@
    ENV is a type environment for local variables."
   (let ((func-info (resolve-type-info-for-symbol function-name)))
     (when (and func-info (typep func-info 'tycl:function-type-info))
-      (let ((params (tycl:function-params func-info)))
-        ;; Check argument count
-        (unless (= (length args) (length params))
+      (let* ((params (tycl:function-params func-info))
+             (required-count (count-if (lambda (p)
+                                         (member (getf p :kind) '(:required nil)))
+                                       params))
+             (total-count (length params)))
+        ;; Check argument count (range check for optional params)
+        (unless (<= required-count (length args) total-count)
           (record-type-error
            `(,function-name ,@args)
-           (format nil "Expected ~D arguments, got ~D"
-                   (length params) (length args)))
+           (if (= required-count total-count)
+               (format nil "Expected ~D arguments, got ~D"
+                       total-count (length args))
+               (format nil "Expected ~D to ~D arguments, got ~D"
+                       required-count total-count (length args))))
           (return-from check-function-call nil))
 
         ;; Check argument types

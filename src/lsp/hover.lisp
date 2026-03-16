@@ -90,22 +90,41 @@
      (mapcar (lambda (sub) (substitute-display-type-params sub bindings)) template))
     (t template)))
 
+(defun insert-optional-marker-in-param-strings (formatted-params params)
+  "Insert \"&optional\" string before the first optional parameter.
+   FORMATTED-PARAMS is a list of already-formatted parameter strings.
+   PARAMS is the corresponding list of parameter plists with :kind."
+  (let ((result '())
+        (optional-inserted nil))
+    (loop for fp in formatted-params
+          for param in params
+          do (when (and (not optional-inserted)
+                        (eq (getf param :kind) :optional))
+               (push "&optional" result)
+               (setf optional-inserted t))
+             (push fp result))
+    (nreverse result)))
+
 (defun format-function-signature (info)
   "Format function type signature for hover display"
   (let ((type-spec (type-info-type-spec info))
         (tp (type-info-type-params info)))
     (if (and (consp type-spec)
             (eq (car type-spec) :function))
-        (let ((params (second type-spec))
-              (return-type (third type-spec)))
+        (let* ((params (second type-spec))
+               (return-type (third type-spec))
+               (formatted-params
+                 (mapcar (lambda (param)
+                           (format nil "[~A ~A]"
+                                   (getf param :name)
+                                   (format-type-spec (getf param :type))))
+                         params))
+               (display-params
+                 (insert-optional-marker-in-param-strings formatted-params params)))
           (format nil "```commonlisp~%(defun ~A~A (~{~A~^ ~})~%  => ~A)~%```"
                  (type-info-name info)
                  (if tp (format nil "{~{~A~^, ~}}" tp) "")
-                 (mapcar (lambda (param)
-                          (format nil "[~A ~A]"
-                                  (getf param :name)
-                                  (format-type-spec (getf param :type))))
-                        params)
+                 display-params
                  (format-type-spec return-type)))
         (format nil "```commonlisp~%(defun ~A ...)~%```"
                (type-info-name info)))))

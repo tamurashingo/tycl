@@ -67,22 +67,53 @@
        :type-params type-params))))
 
 (defun extract-params-types (params-spec)
-  "Extract parameter types from parameter list
-   (([x :integer] [y :string] z) -> ((:name X :type :integer) (:name Y :type :string) (:name Z :type :t))"
-  (loop for param in params-spec
-        collect (cond
-                  ;; Type annotation: [x :integer]
-                  ((tycl/annotation:type-annotation-p param)
-                   (list :name (string-upcase (symbol-name (tycl/annotation:annotation-symbol param)))
-                         :type (tycl/annotation:annotation-type param)))
-                  ;; Regular symbol: x
-                  ((symbolp param)
-                   (list :name (string-upcase (symbol-name param))
-                         :type :t))
-                  ;; Unknown
-                  (t
-                   (warn "Unknown parameter spec: ~S" param)
-                   (list :name "UNKNOWN" :type :t)))))
+  "Extract parameter types from parameter list.
+   Recognizes &optional marker to tag parameters as :required or :optional.
+   Handles default-value syntax: (&optional ([y :string] \"default\"))
+   (([x :integer] &optional [y :string]) ->
+    ((:name X :type :integer :kind :required)
+     (:name Y :type :string :kind :optional)))"
+  (let ((result '())
+        (kind :required))
+    (dolist (param params-spec)
+      (cond
+        ;; &optional marker: switch kind and skip
+        ((and (symbolp param) (string= (symbol-name param) "&OPTIONAL"))
+         (setf kind :optional))
+        ;; Type annotation: [x :integer]
+        ((tycl/annotation:type-annotation-p param)
+         (push (list :name (string-upcase (symbol-name (tycl/annotation:annotation-symbol param)))
+                     :type (tycl/annotation:annotation-type param)
+                     :kind kind)
+               result))
+        ;; Regular symbol: x
+        ((symbolp param)
+         (push (list :name (string-upcase (symbol-name param))
+                     :type :t
+                     :kind kind)
+               result))
+        ;; Default-value list: ([y :string] "default")
+        ((and (listp param) (not (tycl/annotation:type-annotation-p param)))
+         (let ((param-spec (first param)))
+           (cond
+             ((tycl/annotation:type-annotation-p param-spec)
+              (push (list :name (string-upcase (symbol-name (tycl/annotation:annotation-symbol param-spec)))
+                          :type (tycl/annotation:annotation-type param-spec)
+                          :kind kind)
+                    result))
+             ((symbolp param-spec)
+              (push (list :name (string-upcase (symbol-name param-spec))
+                          :type :t
+                          :kind kind)
+                    result))
+             (t
+              (warn "Unknown parameter spec in default-value form: ~S" param)
+              (push (list :name "UNKNOWN" :type :t :kind kind) result)))))
+        ;; Unknown
+        (t
+         (warn "Unknown parameter spec: ~S" param)
+         (push (list :name "UNKNOWN" :type :t :kind kind) result))))
+    (nreverse result)))
 
 ;;; defvar/defparameter/defconstant Type Extraction
 
@@ -183,12 +214,16 @@
 (defun extract-method-specializers (params-spec)
   "Extract method specializers from parameter list"
   (loop for param in params-spec
-        collect (if (tycl/annotation:type-annotation-p param)
-                    (let ((type (tycl/annotation:annotation-type param)))
-                      (if (keywordp type) 
-                          type 
-                          (string-upcase (symbol-name type))))
-                    :t)))
+        unless (and (symbolp param) (string= (symbol-name param) "&OPTIONAL"))
+        collect (let ((p (if (and (listp param) (not (tycl/annotation:type-annotation-p param)))
+                             (first param)
+                             param)))
+                  (if (tycl/annotation:type-annotation-p p)
+                      (let ((type (tycl/annotation:annotation-type p)))
+                        (if (keywordp type)
+                            type
+                            (string-upcase (symbol-name type))))
+                      :t))))
 
 ;;; deftype-tycl Type Extraction
 

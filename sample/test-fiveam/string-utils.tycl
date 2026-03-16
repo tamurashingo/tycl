@@ -24,4 +24,15 @@
   (is (string= (sample-project/string-utils:truncate-string "Hi" 10)
                "Hi")))
 
+(test greet-test
+  (is (string= (sample-project/string-utils:greet "Alice")
+               "Hello, Alice!")
+      "Default greeting should be Hello")
+  (is (string= (sample-project/string-utils:greet "Bob" "Hi")
+               "Hi, Bob!")
+      "Custom greeting should work")
+  (is (string= (sample-project/string-utils:greet "Charlie" "Hey" "How are you?")
+               "Hey, Charlie! How are you?")
+      "Optional suffix without default value should work"))
+
 ;;; vim: set filetype=lisp :

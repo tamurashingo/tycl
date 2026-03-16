@@ -224,6 +224,74 @@
       (ng result "baz is not a subtype of foo")
       (ok (not (null errors))))))
 
+;;; &optional parameter support
+
+(deftest test-optional-all-args-provided
+  (testing "Calling with all optional arguments provided succeeds"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :string] ([x :integer] &optional [y :string]) y)
+                    (f 1 \"hello\")")))
+      (ok (null errors)))))
+
+(deftest test-optional-only-required
+  (testing "Calling with only required arguments succeeds"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x :integer] &optional [y :string]) x)
+                    (f 1)")))
+      (ok (null errors)))))
+
+(deftest test-optional-too-few-args
+  (testing "Calling with fewer than required arguments produces arity error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f :t] ([x :integer] &optional [y :string]) x)
+          (f)")
+      (ng result)
+      (ok (not (null errors)))
+      (ok (some (lambda (err)
+                  (search "expected 1 to 2 arguments, got 0"
+                          (tycl/type-checker:error-message err)))
+                errors)))))
+
+(deftest test-optional-too-many-args
+  (testing "Calling with more than total arguments produces arity error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f :t] ([x :integer] &optional [y :string]) x)
+          (f 1 \"a\" 3)")
+      (ng result)
+      (ok (not (null errors)))
+      (ok (some (lambda (err)
+                  (search "expected 1 to 2 arguments, got 3"
+                          (tycl/type-checker:error-message err)))
+                errors)))))
+
+(deftest test-optional-type-mismatch
+  (testing "Optional argument with wrong type produces type error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f :string] ([x :integer] &optional [y :string]) y)
+          (f 1 42)")
+      (ng result)
+      (ok (not (null errors)))
+      (ok (search "type mismatch" (tycl/type-checker:error-message (first errors)))))))
+
+(deftest test-all-optional-no-args
+  (testing "Function with all optional params can be called with no args"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] (&optional [x :integer] [y :string]) x)
+                    (f)")))
+      (ok (null errors)))))
+
+(deftest test-optional-with-default-value
+  (testing "Optional parameter with default value syntax works"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :string] ([x :integer] &optional ([y :string] \"default\")) y)
+                    (f 1)")))
+      (ok (null errors)))))
+
+;;; Class subtype compatibility
+
 (deftest test-class-subtype-reverse
   (testing "Parent class is not compatible with child type"
     (multiple-value-bind (errors result)

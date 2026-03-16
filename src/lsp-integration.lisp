@@ -298,6 +298,20 @@
       (:detail . ,(format-type-signature type-info))
       (:documentation . ""))))
 
+(defun insert-optional-marker (display-list params)
+  "Insert \"&OPTIONAL\" before the first optional parameter's display item.
+   DISPLAY-LIST contains display values (types or names) corresponding to PARAMS."
+  (let ((result '())
+        (optional-inserted nil))
+    (loop for item in display-list
+          for param in params
+          do (when (and (not optional-inserted)
+                        (eq (getf param :kind) :optional))
+               (push "&OPTIONAL" result)
+               (setf optional-inserted t))
+             (push item result))
+    (nreverse result)))
+
 (defun format-type-signature (type-info)
   "Format type signature for display"
   (ecase (type-info-kind type-info)
@@ -309,8 +323,10 @@
              (if (function-type-params type-info)
                  (format nil "{~{~A~^, ~}}" (function-type-params type-info))
                  "")
-             (mapcar (lambda (p) (getf p :type))
-                    (function-params type-info))
+             (insert-optional-marker
+              (mapcar (lambda (p) (getf p :type))
+                      (function-params type-info))
+              (function-params type-info))
              (function-return-type type-info)))
 
     (:method
@@ -351,17 +367,19 @@
       
       (:function
        (format s "```lisp~%")
-       (if (function-type-params type-info)
-           (format s "(defun [~a {~{~A~^ ~}} ~a] (~{~a~^ ~})~%"
-                   (type-info-symbol type-info)
-                   (function-type-params type-info)
-                   (function-return-type type-info)
-                   (mapcar (lambda (p) (getf p :name))
-                          (function-params type-info)))
-           (format s "(defun ~a (~{~a~^ ~})~%"
-                   (type-info-symbol type-info)
-                   (mapcar (lambda (p) (getf p :name))
-                          (function-params type-info))))
+       (let ((param-names (insert-optional-marker
+                           (mapcar (lambda (p) (getf p :name))
+                                   (function-params type-info))
+                           (function-params type-info))))
+         (if (function-type-params type-info)
+             (format s "(defun [~a {~{~A~^ ~}} ~a] (~{~a~^ ~})~%"
+                     (type-info-symbol type-info)
+                     (function-type-params type-info)
+                     (function-return-type type-info)
+                     param-names)
+             (format s "(defun ~a (~{~a~^ ~})~%"
+                     (type-info-symbol type-info)
+                     param-names)))
        (format s "  ;; Returns: ~a~%" (function-return-type type-info))
        (format s "  ...)~%```"))
       

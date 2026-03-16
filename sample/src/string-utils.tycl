@@ -6,7 +6,8 @@
   (:use #:cl)
   (:export #:join-strings
            #:repeat-string
-           #:truncate-string))
+           #:truncate-string
+           #:greet))
 (in-package #:sample-project/string-utils)
 
 (defun [join-strings :string] ([strings :list] [separator :string])
@@ -22,5 +23,12 @@
   (if (<= (length s) max-length)
       s
       (concatenate 'string (subseq s 0 max-length) "...")))
+
+(defun [greet :string] ([name :string] &optional ([greeting :string] "Hello") [suffix (:string :null)])
+  "Greet someone with an optional greeting prefix and suffix"
+  (let ((base (concatenate 'string greeting ", " name "!")))
+    (if suffix
+        (concatenate 'string base " " suffix)
+        base)))
 
 ;;; vim: set filetype=lisp :
