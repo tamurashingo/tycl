@@ -186,43 +186,43 @@ Type parameters are nested in parentheses:
 
 Use type variables to define generic functions that work with multiple types.
 
-**Syntax**: `[name <type-vars> return-type]`
+**Syntax**: `[name {type-vars} return-type]`
 
-- `<T>` - Single type variable
-- `<A B>` - Multiple type variables
-- The `<...>` notation is only active inside `[...]` brackets; outside brackets, `<` and `>` remain normal symbols
+- `{T}` - Single type variable
+- `{A B}` - Multiple type variables
+- The `{...}` notation is only active inside `[...]` brackets; outside brackets, `{` and `}` remain normal characters
 
 ```lisp
 ;; Single type variable
-(defun [identity <T> T] ([x T])
+(defun [identity {T} T] ([x T])
   x)
 ;; => (defun identity (x) x)
 
 ;; Compound return type using type variable
-(defun [wrap <T> (:list (T))] ([x T])
+(defun [wrap {T} (:list (T))] ([x T])
   (list x))
 ;; => (defun wrap (x) (list x))
 
 ;; Multiple type variables
-(defun [pair <A B> (:cons A B)] ([first A] [second B])
+(defun [pair {A B} (:cons A B)] ([first A] [second B])
   (cons first second))
 ;; => (defun pair (first second) (cons first second))
 
 ;; Type variable with default value
-(defun [first-or-default <T> T] ([lst (:list T)] [default T])
+(defun [first-or-default {T} T] ([lst (:list T)] [default T])
   (if lst (first lst) default))
 ;; => (defun first-or-default (lst default) (if lst (first lst) default))
 ```
 
 **Element count distinction**:
 - 2 elements: `[symbol type]` - Standard type annotation
-- 3 elements: `[symbol <type-params> type]` - Polymorphic type annotation (second element must be a `type-params` object)
+- 3 elements: `[symbol {type-params} type]` - Polymorphic type annotation (second element must be a `type-params` object)
 
 **Implementation notes**:
-- `<` is registered as a reader macro only on a temporary readtable created within `read-bracket-annotation`, so `(< a b)` outside brackets works normally
+- `{` is registered as a reader macro only on a temporary readtable created within `read-bracket-annotation`, so `{` and `}` outside brackets remain normal characters
 - Type variables are stored in the `type-params` slot of `type-annotation` and the `type-params` slot of `function-type-info`
 - Type variables are serialized to `tycl-types.d.lisp` and preserved through round-trips
-- Type variable constraints (e.g., `<T :number>`) are planned for future implementation
+- Type variable constraints (e.g., `{T :number}`) are planned for future implementation
 
 ### 3.5 Custom Types
 
@@ -304,11 +304,11 @@ Transpiles a single TyCL form (S-expression).
 | Input Pattern | Output |
 |---------------|--------|
 | `[symbol type]` | `symbol` |
-| `[symbol <T> type]` | `symbol` |
+| `[symbol {T} type]` | `symbol` |
 | `([sym1 type1] init1)` | `(sym1 init1)` |
 | `([sym1 type1])` | `(sym1)` |
 | `(defun [fname type] ...)` | `(defun fname ...)` |
-| `(defun [fname <T> type] ...)` | `(defun fname ...)` |
+| `(defun [fname {T} type] ...)` | `(defun fname ...)` |
 
 ---
 
@@ -490,7 +490,7 @@ See **lsp-server.md** for details.
   - [x] Simple type aliases (e.g., `userid` → `:integer`)
   - [x] Parametric type aliases (e.g., `(result T)` → `(:list (T))`)
 - [x] Type variables and polymorphism
-  - [x] Type variable syntax (`<T>`, `<A B>`)
+  - [x] Type variable syntax (`{T}`, `{A B}`)
   - [ ] Type constraints (e.g., `<T :number>`)
   - [x] Generic function definitions
 - [ ] Extended generics
@@ -587,8 +587,8 @@ Initially, we tried a read macro approach to process types at compile time, but 
 ### Short-Term (Next Milestone)
 - ~~**Custom Type Registration**: Support for user-defined types~~ ✅ Done (`deftype-tycl`)
 - ~~**Type Aliases**: Reusable type definitions~~ ✅ Done (simple and parametric aliases via `deftype-tycl`)
-- ~~**Type Variables**: Polymorphic function definitions (`<T>`)~~ ✅ Done (unconstrained type variables)
-- **Type Variable Constraints**: Constrained type variables (`<T :number>`)
+- ~~**Type Variables**: Polymorphic function definitions (`{T}`)~~ ✅ Done (unconstrained type variables)
+- **Type Variable Constraints**: Constrained type variables (`{T :number}`)
 
 ### Mid-Term
 - **Type Inference**: Basic type inference support

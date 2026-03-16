@@ -307,7 +307,7 @@
     (:function
      (format nil "~A(~{~a~^ ~}) → ~a"
              (if (function-type-params type-info)
-                 (format nil "<~{~A~^, ~}>" (function-type-params type-info))
+                 (format nil "{~{~A~^, ~}}" (function-type-params type-info))
                  "")
              (mapcar (lambda (p) (getf p :type))
                     (function-params type-info))
@@ -323,7 +323,7 @@
      (format nil "class ~a" (type-info-symbol type-info)))
     (:type-alias
      (if (alias-type-params type-info)
-         (format nil "type ~A<~{~A~^, ~}> = ~A"
+         (format nil "type ~A{~{~A~^, ~}} = ~A"
                  (type-info-symbol type-info)
                  (alias-type-params type-info)
                  (alias-expanded-type type-info))
@@ -352,7 +352,7 @@
       (:function
        (format s "```lisp~%")
        (if (function-type-params type-info)
-           (format s "(defun [~a <~{~A~^ ~}> ~a] (~{~a~^ ~})~%"
+           (format s "(defun [~a {~{~A~^ ~}} ~a] (~{~a~^ ~})~%"
                    (type-info-symbol type-info)
                    (function-type-params type-info)
                    (function-return-type type-info)

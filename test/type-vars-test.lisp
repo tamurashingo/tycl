@@ -17,9 +17,9 @@
 ;;; ============================================================
 
 (deftest test-read-simple-type-params
-  (testing "Reading [identity <T> T] produces correct type-annotation"
+  (testing "Reading [identity {T} T] produces correct type-annotation"
     (let* ((*readtable* tycl/reader:*tycl-readtable*)
-           (result (read-from-string "[identity <T> T]")))
+           (result (read-from-string "[identity {T} T]")))
       (ok (tycl/annotation:type-annotation-p result)
           "Result should be a type-annotation")
       (ok (eq 'identity (tycl/annotation:annotation-symbol result))
@@ -34,9 +34,9 @@
             "type-params entries should be (T)")))))
 
 (deftest test-read-multiple-type-params
-  (testing "Reading [pair <A B> (:cons A B)] produces correct type-annotation"
+  (testing "Reading [pair {A B} (:cons A B)] produces correct type-annotation"
     (let* ((*readtable* tycl/reader:*tycl-readtable*)
-           (result (read-from-string "[pair <A B> (:cons A B)]")))
+           (result (read-from-string "[pair {A B} (:cons A B)]")))
       (ok (tycl/annotation:type-annotation-p result)
           "Result should be a type-annotation")
       (ok (eq 'pair (tycl/annotation:annotation-symbol result))
@@ -81,7 +81,7 @@
 (deftest test-transpile-polymorphic-defun
   (testing "Polymorphic defun transpiles correctly"
     (let ((output (tycl:transpile-string
-                   "(defun [identity <T> T] ([x T]) x)")))
+                   "(defun [identity {T} T] ([x T]) x)")))
       (ok (stringp output))
       (ok (search "defun identity (x)" output)
           "Type annotations including type params should be stripped")
@@ -91,7 +91,7 @@
 (deftest test-transpile-multi-param-polymorphic
   (testing "Multi-param polymorphic defun transpiles correctly"
     (let ((output (tycl:transpile-string
-                   "(defun [pair <A B> (:cons A B)] ([first A] [second B]) (cons first second))")))
+                   "(defun [pair {A B} (:cons A B)] ([first A] [second B]) (cons first second))")))
       (ok (stringp output))
       (ok (search "defun pair (first second)" output)
           "Function with multiple type params should transpile correctly")
@@ -102,7 +102,7 @@
   (testing "Polymorphic and non-polymorphic forms coexist"
     (let ((output (tycl:transpile-string
                    "(defun [add :integer] ([x :integer] [y :integer]) (+ x y))
-                    (defun [identity <T> T] ([x T]) x)")))
+                    (defun [identity {T} T] ([x T]) x)")))
       (ok (stringp output))
       (ok (search "defun add (x y)" output)
           "Non-polymorphic function transpiles normally")
@@ -118,7 +118,7 @@
     (tycl:clear-type-database)
     (let ((tycl:*current-package* "TEST-PKG"))
       (let* ((*readtable* tycl/reader:*tycl-readtable*)
-             (form (read-from-string "(defun [identity <T> T] ([x T]) x)")))
+             (form (read-from-string "(defun [identity {T} T] ([x T]) x)")))
         (tycl:extract-type-from-form form)
         (let ((info (tycl:lookup-type-info "TEST-PKG" "IDENTITY")))
           (ok info "Function type info should be registered")
@@ -134,7 +134,7 @@
     (tycl:clear-type-database)
     (let ((tycl:*current-package* "TEST-PKG"))
       (let* ((*readtable* tycl/reader:*tycl-readtable*)
-             (form (read-from-string "(defun [pair <A B> (:cons A B)] ([first A] [second B]) (cons first second))")))
+             (form (read-from-string "(defun [pair {A B} (:cons A B)] ([first A] [second B]) (cons first second))")))
         (tycl:extract-type-from-form form)
         (let ((info (tycl:lookup-type-info "TEST-PKG" "PAIR")))
           (ok info "Function type info should be registered")
@@ -164,7 +164,7 @@
     (tycl:clear-type-database)
     (let ((tycl:*current-package* "TEST-PKG"))
       (let* ((*readtable* tycl/reader:*tycl-readtable*)
-             (form (read-from-string "(defun [identity <T> T] ([x T]) x)")))
+             (form (read-from-string "(defun [identity {T} T] ([x T]) x)")))
         (tycl:extract-type-from-form form)
         (let* ((info (tycl:lookup-type-info "TEST-PKG" "IDENTITY"))
                (serialized (tycl::serialize-type-info info)))
@@ -200,7 +200,7 @@
 (deftest test-full-pipeline-polymorphic
   (testing "Full transpile pipeline with polymorphic function"
     (let ((output (transpile-with-types
-                   "(defun [identity <T> T] ([x T]) x)")))
+                   "(defun [identity {T} T] ([x T]) x)")))
       (ok (stringp output))
       (ok (search "defun identity (x)" output)
           "Function should be transpiled normally")
@@ -214,7 +214,7 @@
   (testing "Full pipeline with deftype-tycl and polymorphic function"
     (let ((output (transpile-with-types
                    "(deftype-tycl userid :integer)
-                    (defun [identity <T> T] ([x T]) x)
+                    (defun [identity {T} T] ([x T]) x)
                     (defun [get-id userid] ([id userid]) id)")))
       (ok (stringp output))
       (ok (null (search "deftype-tycl" output))

@@ -3,7 +3,7 @@
 
 (in-package #:tycl/annotation)
 
-;;; Type Parameters class (from <T>, <A B>)
+;;; Type Parameters class (from {T}, {A B})
 
 (defclass type-params ()
   ((entries
@@ -12,7 +12,7 @@
     :initform nil
     :type list
     :documentation "List of type variable symbols, e.g. (T) or (A B)"))
-  (:documentation "Represents type parameters from <T>, <A B>"))
+  (:documentation "Represents type parameters from {T}, {A B}"))
 
 (defun type-params-p (obj)
   "Check if OBJ is a type-params"
@@ -37,8 +37,8 @@
     :initarg :type-params
     :accessor annotation-type-params
     :initform nil
-    :documentation "Type parameters from <T>, <A B> notation"))
-  (:documentation "Represents [symbol type] or [symbol <type-params> type] parsed from TyCL source"))
+    :documentation "Type parameters from {T}, {A B} notation"))
+  (:documentation "Represents [symbol type] or [symbol {type-params} type] parsed from TyCL source"))
 
 (defun type-annotation-p (obj)
   "Check if OBJ is a type-annotation"

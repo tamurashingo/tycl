@@ -45,7 +45,7 @@
                (mapcar #'format-type-spec type-spec)))
        ;; Generic type: first is keyword, rest are params, e.g. (:list (:integer))
        ((keywordp (car type-spec))
-        (format nil "~(~A~)<~{~A~^, ~}>"
+        (format nil "~(~A~){~{~A~^, ~}}"
                (car type-spec)
                (mapcar #'format-type-spec (cdr type-spec))))
        ;; Fallback: check for parametric type alias application, else union
@@ -100,7 +100,7 @@
               (return-type (third type-spec)))
           (format nil "```commonlisp~%(defun ~A~A (~{~A~^ ~})~%  => ~A)~%```"
                  (type-info-name info)
-                 (if tp (format nil "<~{~A~^, ~}>" tp) "")
+                 (if tp (format nil "{~{~A~^, ~}}" tp) "")
                  (mapcar (lambda (param)
                           (format nil "[~A ~A]"
                                   (getf param :name)

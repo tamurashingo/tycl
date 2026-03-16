@@ -167,31 +167,31 @@ Data structures with type parameters:
   ...)
 ```
 
-Define generic functions with type variables using `<E>` notation:
+Define generic functions with type variables using `{E}` notation:
 
 ```lisp
 ;; Single type variable
-(defun [identity <E> E] ([x E])
+(defun [identity {E} E] ([x E])
   x)
 ;; => (defun identity (x) x)
 
 ;; Compound return type using type variable
-(defun [wrap <E> (:list (E))] ([x E])
+(defun [wrap {E} (:list (E))] ([x E])
   (list x))
 ;; => (defun wrap (x) (list x))
 
 ;; Multiple type variables
-(defun [swap-pair <A B> (:cons B A)] ([p (:cons A B)])
+(defun [swap-pair {A B} (:cons B A)] ([p (:cons A B)])
   (cons (cdr p) (car p)))
 ;; => (defun swap-pair (p) (cons (cdr p) (car p)))
 
 ;; Type variable in parameters
-(defun [first-or-default <E> E] ([lst (:list E)] [default E])
+(defun [first-or-default {E} E] ([lst (:list E)] [default E])
   (if lst (first lst) default))
 ;; => (defun first-or-default (lst default) (if lst (first lst) default))
 ```
 
-The `<...>` notation is only active inside `[...]` brackets. Outside brackets, `<` and `>` remain normal symbols, so `(< a b)` works as expected.
+The `{...}` notation is only active inside `[...]` brackets. Outside brackets, `{` and `}` remain normal characters.
 
 ### Class Inheritance and Subtype Polymorphism
 
@@ -369,7 +369,7 @@ Declaration files are automatically loaded during transpilation, type checking, 
 
 - Use **canonical package names** in `in-package` (e.g., `#:common-lisp` instead of `#:cl`), because TyCL stores package names as written and the type checker uses canonical names for lookup.
 - For CL functions with `&rest`, `&optional`, or `&key` parameters, only declare the required parameters — TyCL validates argument count against the declared parameter list.
-- Symbols starting with `<` or `>` cannot be used in `[...]` annotations because those characters are reserved for type parameter syntax `<T>`.
+- Type parameter syntax uses `{T}` notation inside `[...]` annotations (e.g., `[identity {T} T]`).
 
 See the [sample project](sample/tycl-declarations/) for a working example.
 
