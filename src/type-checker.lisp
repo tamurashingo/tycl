@@ -586,6 +586,10 @@
    Prints errors to *standard-output*."
   ;; Load hooks (custom type extractors)
   (tycl:find-and-load-hooks (uiop:pathname-directory-pathname input-file))
+  ;; Load declaration files for external libraries
+  (tycl:find-and-load-declarations
+   (uiop:pathname-directory-pathname input-file)
+   :output *error-output*)
   ;; Load project type database (search file dir and parent)
   (load-project-type-context (uiop:pathname-directory-pathname input-file))
   (let ((tycl-source (uiop:read-file-string input-file))

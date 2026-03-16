@@ -23,17 +23,17 @@
 
 (defun [add num] ([x num] [y num])
   "Add two integers"
-  (+ x y))
+  [(+ x y) num])
 
 (defun [multiply num] ([x num] [y num])
   "Multiply two integers"
-  (* x y))
+  [(* x y) num])
 
 (defun [factorial num] ([n num])
   "Calculate factorial recursively"
   (if (<= n 1)
       1
-      (* n (factorial (1- n)))))
+      [(* n (factorial (1- n))) num]))
 
 (defun [safe-divide nullable-num] ([x num] [y num])
   "Divide x by y, returning nil on division by zero"

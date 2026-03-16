@@ -1,0 +1,11 @@
+;;; Type declarations for CL-PPCRE library
+
+(defpackage #:cl-ppcre
+  (:use #:cl))
+
+(in-package #:cl-ppcre)
+
+(defun [scan (:integer :integer :integer :integer)] ([regex :string] [target :string]))
+(defun [regex-replace :string] ([regex :string] [target :string] [replacement :string]))
+(defun [regex-replace-all :string] ([regex :string] [target :string] [replacement :string]))
+(defun [split :list] ([regex :string] [target :string]))

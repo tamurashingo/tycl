@@ -24,6 +24,7 @@
                  (:file "type-info")
                  (:file "type-serializer")
                  (:file "type-extractor")
+                 (:file "declarations")
                  (:file "type-checker")
                  (:file "transpiler")
                  (:file "lsp-integration")
@@ -61,7 +62,8 @@
                  (:file "asdf-test")
                  (:file "type-checker-test")
                  (:file "deftype-tycl-test")
-                 (:file "type-vars-test")))
+                 (:file "type-vars-test")
+                 (:file "declarations-test")))
                (:module "test/lsp"
                 :components
                 ((:file "did-change-test")

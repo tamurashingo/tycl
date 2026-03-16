@@ -40,6 +40,13 @@
             (when *debug-mode*
               (format *error-output* "~%Error transpiling ~A: ~A~%" asd-file e))))))
 
+    ;; Load declaration files for external libraries
+    (handler-case
+        (tycl:find-and-load-declarations root-path :output *error-output*)
+      (error (e)
+        (when *debug-mode*
+          (format *error-output* "~%Error loading declarations: ~A~%" e))))
+
     ;; Load type information from workspace
     (load-workspace-types root-path)
     

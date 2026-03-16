@@ -1,0 +1,62 @@
+;;; -*- mode: lisp -*-
+;;;; Type declarations for Common Lisp standard library functions
+;;;; Used by sample-project to enable type checking on CL function calls
+;;;;
+;;;; This is a .d.tycl file - it declares types for external functions
+;;;; that are not written in TyCL, similar to TypeScript's .d.ts files.
+;;;;
+;;;; Note: Symbols starting with < or > cannot be used in [...] annotations
+;;;; because those characters are reserved for type parameter syntax <T>.
+;;;;
+;;;; Note: CL functions with &rest/&optional/&key parameters should only
+;;;; declare the required parameters, since TyCL's type checker validates
+;;;; argument count against the declared parameter list.
+
+(in-package #:common-lisp)
+
+;;; ============================================================
+;;; Arithmetic
+;;; ============================================================
+
+(defun [+ :number] ([a :number] [b :number]))
+(defun [- :number] ([a :number] [b :number]))
+(defun [* :number] ([a :number] [b :number]))
+(defun [/ :number] ([a :number] [b :number]))
+(defun [1+ :number] ([n :number]))
+(defun [1- :number] ([n :number]))
+
+;;; ============================================================
+;;; Predicates
+;;; ============================================================
+
+(defun [zerop :boolean] ([n :number]))
+(defun [null :boolean] ([obj :t]))
+(defun [not :boolean] ([obj :t]))
+(defun [numberp :boolean] ([obj :t]))
+(defun [stringp :boolean] ([obj :t]))
+(defun [listp :boolean] ([obj :t]))
+
+;;; ============================================================
+;;; List Operations
+;;; ============================================================
+
+(defun [cons :cons] ([car :t] [cdr :t]))
+(defun [car :t] ([list :t]))
+(defun [cdr :t] ([list :t]))
+(defun [first :t] ([list :t]))
+(defun [second :t] ([list :list]))
+(defun [third :t] ([list :list]))
+(defun [rest :list] ([list :list]))
+(defun [last :list] ([list :list]))
+(defun [nth :t] ([n :integer] [list :list]))
+(defun [length :integer] ([sequence :t]))
+(defun [reverse :list] ([sequence :list]))
+
+;;; ============================================================
+;;; String Operations
+;;; ============================================================
+
+(defun [string-upcase :string] ([string :string]))
+(defun [string-downcase :string] ([string :string]))
+
+;;; vim: set filetype=lisp :

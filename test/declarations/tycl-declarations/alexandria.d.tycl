@@ -1,0 +1,13 @@
+;;; Type declarations for Alexandria library
+;;; This is a sample .d.tycl file for testing
+
+(defpackage #:alexandria
+  (:use #:cl))
+
+(in-package #:alexandria)
+
+(defun [flatten :list] ([list :list]))
+(defun [ensure-list :list] ([thing :t]))
+(defun [starts-with-subseq :boolean] ([prefix :string] [sequence :string]))
+(defun [ends-with-subseq :boolean] ([suffix :string] [sequence :string]))
+(defun [iota :list] ([n :integer] [start :integer] [step :integer]))
