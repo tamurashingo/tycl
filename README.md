@@ -320,6 +320,59 @@ git commit -m "Add type declaration file"
 
 Although `tycl-types.d.lisp` is auto-generated during transpilation, it serves as the type declaration file for consumers of your library (similar to `.d.ts` in TypeScript) and should be checked into version control.
 
+## Declaration Files for External Libraries
+
+TyCL can type-check calls to external libraries that are not written in TyCL by using `.d.tycl` declaration files — similar to TypeScript's `.d.ts` files.
+
+### Writing Declaration Files
+
+Create a `tycl-declarations/` directory in your project root and place `.d.tycl` files in it. Each file declares type signatures using standard TyCL syntax, without function bodies:
+
+```lisp
+;;; tycl-declarations/cl-functions.d.tycl
+
+(in-package #:common-lisp)
+
+(defun [1+ :number] ([n :number]))
+(defun [1- :number] ([n :number]))
+(defun [zerop :boolean] ([n :number]))
+(defun [length :integer] ([sequence :t]))
+(defun [cons :cons] ([car :t] [cdr :t]))
+(defun [first :t] ([list :t]))
+(defun [reverse :list] ([sequence :list]))
+(defun [string-upcase :string] ([string :string]))
+```
+
+You can also declare classes:
+
+```lisp
+;;; tycl-declarations/my-orm.d.tycl
+
+(in-package #:my-orm)
+
+(defclass db-connection ()
+  (([host :string] :initarg :host)
+   ([port :integer] :initarg :port)))
+
+(defun [connect db-connection] ([host :string] [port :integer]))
+(defun [query :list] ([conn db-connection] [sql :string]))
+```
+
+### Discovery and Loading
+
+Declaration files are automatically loaded during transpilation, type checking, and LSP server initialization. TyCL searches the following locations:
+
+1. **Project-local**: `tycl-declarations/` directory relative to the source file or project root
+2. **User-global**: `~/.config/tycl/declarations/` for declarations shared across projects
+
+### Notes
+
+- Use **canonical package names** in `in-package` (e.g., `#:common-lisp` instead of `#:cl`), because TyCL stores package names as written and the type checker uses canonical names for lookup.
+- For CL functions with `&rest`, `&optional`, or `&key` parameters, only declare the required parameters — TyCL validates argument count against the declared parameter list.
+- Symbols starting with `<` or `>` cannot be used in `[...]` annotations because those characters are reserved for type parameter syntax `<T>`.
+
+See the [sample project](sample/tycl-declarations/) for a working example.
+
 ## Custom Macro Support
 
 TyCL supports custom macros through a hook mechanism. This allows extracting type information from project-specific macro definitions.
@@ -469,7 +522,8 @@ When the LSP server starts, it performs the following initialization:
 
 1. **`.asd` file discovery**: Scans the workspace root for `.asd` files
 2. **Full transpilation**: If `.asd` files with `tycl-system` definitions are found, all `.tycl` files in those systems are transpiled to generate `tycl-types.d.lisp`. This runs unconditionally regardless of whether `tycl-types.d.lisp` already exists, ensuring type information is always up-to-date.
-3. **Type information loading**: Loads `tycl-types.d.lisp` files from the workspace to populate the type cache
+3. **Declaration file loading**: Loads `.d.tycl` files from `tycl-declarations/` directories for external library type information
+4. **Type information loading**: Loads `tycl-types.d.lisp` files from the workspace to populate the type cache
 
 This ensures that LSP features (hover, completion, diagnostics) have complete type information available from the first interaction.
 
@@ -529,6 +583,7 @@ tycl/
 │   ├── emacs/       # Emacs tycl-mode
 │   └── vscode/      # VS Code extension
 ├── sample/           # Sample project using ASDF integration
+│   └── tycl-declarations/  # Declaration files for external libraries
 └── docs/             # Documentation
     ├── design.md         # Design specification
     ├── asdf.md           # ASDF extension design
