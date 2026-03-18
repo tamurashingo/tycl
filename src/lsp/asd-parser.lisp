@@ -179,13 +179,23 @@
 ;;; ============================================================
 
 (defun load-system-dependencies (system &key (output *error-output*))
-  "Load dependencies of a system, using Quicklisp to resolve missing ones."
+  "Load dependencies of a system, using Quicklisp to resolve missing ones.
+   Handles both asdf:missing-component (top-level system not found) and
+   asdf:missing-dependency (transitive dependency not found)."
   (let ((tries (make-hash-table :test #'equal)))
     (dolist (dep (asdf:system-depends-on system))
       (block next
         (tagbody retry
           (handler-case
               (asdf:load-system dep)
+            (asdf:missing-component (c)
+              (let ((missing (asdf::missing-requires c)))
+                (when (gethash missing tries)
+                  (format output "~&Warning: Cannot resolve dependency ~A~%" missing)
+                  (return-from next))
+                (setf (gethash missing tries) t)
+                #+quicklisp (ql:quickload missing :silent t)
+                (go retry)))
             (asdf:missing-dependency (c)
               (let ((missing (asdf::missing-requires c)))
                 (when (gethash missing tries)
