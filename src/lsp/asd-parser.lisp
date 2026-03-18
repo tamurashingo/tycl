@@ -175,6 +175,29 @@
           nil)))))
 
 ;;; ============================================================
+;;; Loading system dependencies with Quicklisp fallback
+;;; ============================================================
+
+(defun load-system-dependencies (system &key (output *error-output*))
+  "Load dependencies of a system, using Quicklisp to resolve missing ones."
+  (let ((tries (make-hash-table :test #'equal)))
+    (dolist (dep (asdf:system-depends-on system))
+      (block next
+        (tagbody retry
+          (handler-case
+              (asdf:load-system dep)
+            (asdf:missing-dependency (c)
+              (let ((missing (asdf::missing-requires c)))
+                (when (gethash missing tries)
+                  (format output "~&Warning: Cannot resolve dependency ~A~%" missing)
+                  (return-from next))
+                (setf (gethash missing tries) t)
+                #+quicklisp (ql:quickload missing :silent t)
+                (go retry)))
+            (error (e)
+              (format output "~&Warning: Failed to load dependency ~A: ~A~%" dep e))))))))
+
+;;; ============================================================
 ;;; Transpile all files in .asd
 ;;; ============================================================
 
@@ -189,11 +212,7 @@
     (dolist (entry systems)
       (let ((system (cdr entry)))
         (when load-dependencies
-          (dolist (dep (asdf:system-depends-on system))
-            (handler-case
-                (asdf:load-system dep)
-              (error (e)
-                (format output "~&Warning: Failed to load dependency ~A: ~A~%" dep e)))))
+          (load-system-dependencies system :output output))
         (labels ((process-component (component)
                    (cond
                      ((typep component 'tycl/asdf:tycl-file)
@@ -252,20 +271,16 @@
       (let ((system (cdr entry)))
         ;; Load dependency systems if requested
         (when load-dependencies
+          (load-system-dependencies system :output output)
+          ;; Load type databases from dependency tycl-systems
           (dolist (dep (asdf:system-depends-on system))
-            (handler-case
-                (progn
-                  (asdf:load-system dep)
-                  ;; Load type database from dependency tycl-systems
-                  (let ((dep-system (asdf:find-system dep nil)))
-                    (when (and dep-system (typep dep-system 'tycl/asdf:tycl-system))
-                      (let ((type-file (merge-pathnames
-                                        (make-pathname :name "tycl-types.d" :type "lisp")
-                                        (asdf:system-source-directory dep-system))))
-                        (when (probe-file type-file)
-                          (tycl:load-type-database type-file :output output))))))
-              (error (e)
-                (format output "~&Warning: Failed to load dependency ~A: ~A~%" dep e)))))
+            (let ((dep-system (asdf:find-system dep nil)))
+              (when (and dep-system (typep dep-system 'tycl/asdf:tycl-system))
+                (let ((type-file (merge-pathnames
+                                  (make-pathname :name "tycl-types.d" :type "lisp")
+                                  (asdf:system-source-directory dep-system))))
+                  (when (probe-file type-file)
+                    (tycl:load-type-database type-file :output output)))))))
         (labels ((process-component (component)
                    (cond
                      ((typep component 'tycl/asdf:tycl-file)
