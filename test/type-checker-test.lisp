@@ -781,3 +781,60 @@
             (f \"hello\" 1))")
       (ng result)
       (ok (not (null errors))))))
+
+;;; Literal argument type checking
+
+(deftest test-literal-integer-to-string-param
+  (testing "Passing integer literal to :string param is an error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [foo :t] ([param :string]) param)
+          (foo 3)")
+      (ng result)
+      (ok (not (null errors))))))
+
+(deftest test-literal-string-to-integer-param
+  (testing "Passing string literal to :integer param is an error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [foo :t] ([param :integer]) param)
+          (foo \"hello\")")
+      (ng result)
+      (ok (not (null errors))))))
+
+(deftest test-literal-integer-to-integer-param
+  (testing "Passing integer literal to :integer param is OK"
+    (let ((errors (check-and-get-errors
+                   "(defun [foo :t] ([param :integer]) param)
+                    (foo 42)")))
+      (ok (null errors)))))
+
+(deftest test-literal-string-to-string-param
+  (testing "Passing string literal to :string param is OK"
+    (let ((errors (check-and-get-errors
+                   "(defun [foo :t] ([param :string]) param)
+                    (foo \"hello\")")))
+      (ok (null errors)))))
+
+(deftest test-literal-float-to-number-param
+  (testing "Passing float literal to :number param is OK"
+    (let ((errors (check-and-get-errors
+                   "(defun [foo :t] ([param :number]) param)
+                    (foo 3.14)")))
+      (ok (null errors)))))
+
+(deftest test-literal-integer-to-number-param
+  (testing "Passing integer literal to :number param is OK"
+    (let ((errors (check-and-get-errors
+                   "(defun [foo :t] ([param :number]) param)
+                    (foo 42)")))
+      (ok (null errors)))))
+
+(deftest test-literal-string-to-number-param
+  (testing "Passing string literal to :number param is an error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [foo :t] ([param :number]) param)
+          (foo \"hello\")")
+      (ng result)
+      (ok (not (null errors))))))

@@ -280,6 +280,38 @@
 
 ;;; Environment Building
 
+(defun extract-param-types (params-spec)
+  "Extract parameter type information from a params-spec list.
+   Returns a list of plists compatible with function-type-info params format:
+   ((:name name :type type :kind kind) ...)"
+  (let ((result nil)
+        (kind :required))
+    (dolist (param params-spec)
+      (cond
+        ((and (symbolp param)
+              (member (symbol-name param) '("&OPTIONAL" "&KEY" "&REST") :test #'string=))
+         (setf kind (cond ((string= (symbol-name param) "&OPTIONAL") :optional)
+                          ((string= (symbol-name param) "&KEY") :key)
+                          (t :rest))))
+        ((tycl/annotation:type-annotation-p param)
+         (push (list :name (tycl/annotation:annotation-symbol param)
+                     :type (tycl/annotation:annotation-type param)
+                     :kind kind)
+               result))
+        ((symbolp param)
+         (push (list :name param :type :t :kind kind) result))
+        ((and (listp param) (not (tycl/annotation:type-annotation-p param)))
+         (let ((param-spec (first param)))
+           (cond
+             ((tycl/annotation:type-annotation-p param-spec)
+              (push (list :name (tycl/annotation:annotation-symbol param-spec)
+                          :type (tycl/annotation:annotation-type param-spec)
+                          :kind kind)
+                    result))
+             ((symbolp param-spec)
+              (push (list :name param-spec :type :t :kind kind) result)))))))
+    (nreverse result)))
+
 (defun build-param-env (params-spec env)
   "Build a type environment from a parameter list specification.
    Handles &optional, &key, and &rest markers and default-value syntax.
@@ -360,7 +392,8 @@
                                 (format nil "Return type mismatch: declared ~S but body returns ~S"
                                         return-type inferred))))))
     ;; Register function in env for forward references within local scope
-    (push (cons func-name `(:function ,return-type)) env)
+    (let ((param-types (extract-param-types params-spec)))
+      (push (cons func-name `(:function ,return-type ,param-types)) env))
     env))
 
 (defun check-let (form env)
@@ -435,7 +468,9 @@
                  (return-type (if (tycl/annotation:type-annotation-p name-spec)
                                   (tycl/annotation:annotation-type name-spec)
                                   :t)))
-            (push (cons func-name `(:function ,return-type)) body-env)))))
+            (let ((param-types (when (and (listp binding) (>= (length binding) 2))
+                                 (extract-param-types (second binding)))))
+              (push (cons func-name `(:function ,return-type ,param-types)) body-env))))))
     ;; Process each local function definition
     (dolist (binding bindings)
       (when (and (listp binding) (>= (length binding) 2))
@@ -468,7 +503,8 @@
                                               func-name return-type inferred))))))
           ;; For flet, add function to body-env after checking
           (when (eq operator 'flet)
-            (push (cons func-name `(:function ,return-type)) body-env)))))
+            (let ((param-types (extract-param-types params-spec)))
+              (push (cons func-name `(:function ,return-type ,param-types)) body-env))))))
     ;; Check outer body with extended environment
     (dolist (expr body)
       (setf body-env (check-form expr body-env)))
@@ -507,11 +543,17 @@
     ;; Recursively check each argument
     (dolist (arg args)
       (check-form arg env))
-    ;; Check against type database
-    (let ((func-info (resolve-type-info-for-symbol func-name)))
-      (when (and func-info (typep func-info 'tycl:function-type-info))
-        (let* ((params (tycl:function-params func-info))
-               (type-params (tycl:function-type-params func-info))
+    ;; Check against local env or type database
+    (let* ((local-func (cdr (assoc func-name env)))
+           (local-params (when (and (consp local-func)
+                                    (eq (first local-func) :function))
+                           (third local-func)))
+           (func-info (unless local-params
+                        (resolve-type-info-for-symbol func-name))))
+      (when (or local-params
+                (and func-info (typep func-info 'tycl:function-type-info)))
+        (let* ((params (if local-params local-params (tycl:function-params func-info)))
+               (type-params (if local-params nil (tycl:function-type-params func-info)))
                (required-params (remove-if-not (lambda (p)
                                                  (member (getf p :kind) '(:required nil)))
                                                params))
