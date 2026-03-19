@@ -41,9 +41,15 @@
              (with-open-file (in path :direction :input)
                (loop for form = (read in nil :eof)
                      until (eq form :eof)
-                     do ;; Process in-package/defpackage for correct symbol resolution
-                        (tycl/transpiler:process-reader-package-form form)
-                        ;; Extract type information only
+                     do ;; Extract type information only.
+                        ;; Do NOT call process-reader-package-form here:
+                        ;; Declaration files reference external packages that may not
+                        ;; exist as Lisp packages. Changing *package* to such a package
+                        ;; would cause CL symbols (DEFUN, DEFVAR, etc.) to be interned
+                        ;; in the wrong package, breaking eq comparisons in
+                        ;; extract-type-from-form. Instead, only update *current-package*
+                        ;; (via extract-type-from-form's in-package handler) for type
+                        ;; registration purposes.
                         (extract-type-from-form form)))
              (push path *loaded-declaration-files*)
              (when output

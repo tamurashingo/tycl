@@ -274,6 +274,10 @@
         (error (e)
           (format output "~&Warning: Failed to load project types from ~A: ~A~%"
                   project-types e)))))
+  ;; Load declaration files from .asd directory (project root)
+  (tycl:find-and-load-declarations
+   (uiop:pathname-directory-pathname asd-path)
+   :output output)
   (let ((systems (load-asd-file asd-path))
         (checked 0)
         (failed 0))
