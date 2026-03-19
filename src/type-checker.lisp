@@ -148,12 +148,17 @@
       ;; Exact match
       ((equal actual expected) t)
 
-      ;; Union type: actual must be compatible with one of the union members
-      ;; Only treat as union when all members are atoms (keywords or symbols),
-      ;; e.g. (:integer :string) or (:cons B A) with type variables.
-      ;; Generic types like (:list (:string)) contain cons elements and are NOT unions.
-      ((and (consp expected) (not (consp actual))
-            (every #'atom expected))
+      ;; Union type: expected is a list whose first element is NOT a keyword.
+      ;; e.g. (:integer :string) has :integer (keyword) as first → ambiguous
+      ;;      ((:list (:string)) :null) has (:list (:string)) (cons) as first → union
+      ;; For atom-only lists like (:integer :string), we use the heuristic that
+      ;; it's a union if actual is an atom (not a generic type constructor).
+      ((and (consp expected)
+            (not (keywordp (first expected))))
+       (some (lambda (member-type) (type-compatible-p actual member-type)) expected))
+      ((and (consp expected)
+            (every #'atom expected)
+            (not (consp actual)))
        (some (lambda (member-type) (type-compatible-p actual member-type)) expected))
 
       ;; Generic types: check base and parameters

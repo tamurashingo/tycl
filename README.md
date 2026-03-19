@@ -172,10 +172,20 @@ Rest parameters collect all remaining arguments into a list. The type annotation
 Accept multiple types:
 
 ```lisp
+;; integer or string
 (defun [process :void] ([value (:integer :string)])
   (typecase value
     (integer (handle-number value))
     (string (handle-string value))))
+
+;; nullable value
+(defun [find-name (:string :null)] ([id :integer])
+  (gethash id *name-table*))
+
+;; union with generic types (see Generics section below)
+(defun [parse-items ((:list (:string)) :null)] ([input :string])
+  (when (valid-p input)
+    (split-string input)))
 ```
 
 ### Custom Type Definitions (deftype-tycl)

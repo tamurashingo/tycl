@@ -501,6 +501,102 @@
       (ng result)
       (ok (not (null errors))))))
 
+;;; Union types with generic types
+
+(deftest test-union-list-string-or-null-accepts-list
+  (testing "(:list (:string)) is compatible with ((:list (:string)) :null)"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x ((:list (:string)) :null)]) x)
+                    (defun [test-it :t] ([items (:list (:string))]) (f items))")))
+      (ok (null errors)))))
+
+(deftest test-union-list-string-or-null-accepts-null
+  (testing ":null is compatible with ((:list (:string)) :null)"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x ((:list (:string)) :null)]) x)
+                    (f nil)")))
+      (ok (null errors)))))
+
+(deftest test-union-list-string-or-null-rejects-integer
+  (testing ":integer is not compatible with ((:list (:string)) :null)"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f :t] ([x ((:list (:string)) :null)]) x)
+          (defun [test-it :t] ([n :integer]) (f n))")
+      (ng result)
+      (ok (not (null errors)))
+      (ok (some (lambda (err)
+                  (search "type mismatch" (tycl/type-checker:error-message err)))
+                errors)))))
+
+(deftest test-union-hashtable-or-null-accepts-hashtable
+  (testing "(:hash-table (:integer) (:string)) is compatible with ((:hash-table (:integer) (:string)) :null)"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x ((:hash-table (:integer) (:string)) :null)]) x)
+                    (defun [test-it :t] ([tbl (:hash-table (:integer) (:string))]) (f tbl))")))
+      (ok (null errors)))))
+
+(deftest test-union-hashtable-or-null-rejects-integer
+  (testing ":integer is not compatible with ((:hash-table (:integer) (:string)) :null)"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f :t] ([x ((:hash-table (:integer) (:string)) :null)]) x)
+          (defun [test-it :t] ([n :integer]) (f n))")
+      (ng result)
+      (ok (not (null errors))))))
+
+(deftest test-union-custom-classes-or-null
+  (testing "my-class-a is compatible with (my-class-a my-class-b :null)"
+    (let ((errors (check-and-get-errors
+                   "(defclass my-class-a () ())
+                    (defclass my-class-b () ())
+                    (defun [f :t] ([x (my-class-a my-class-b :null)]) x)
+                    (defun [test-it :t] ([a my-class-a]) (f a))")))
+      (ok (null errors)))))
+
+(deftest test-union-custom-classes-or-null-rejects-integer
+  (testing ":integer is not compatible with (my-class-a my-class-b :null)"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defclass my-class-a () ())
+          (defclass my-class-b () ())
+          (defun [f :t] ([x (my-class-a my-class-b :null)]) x)
+          (defun [test-it :t] ([n :integer]) (f n))")
+      (ng result)
+      (ok (not (null errors))))))
+
+(deftest test-union-generic-custom-class-or-null-accepts
+  (testing "(my-class-c (:string)) is compatible with ((my-class-c (:string)) :null)"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x ((my-class-c (:string)) :null)]) x)
+                    (defun [test-it :t] ([c (my-class-c (:string))]) (f c))")))
+      (ok (null errors)))))
+
+(deftest test-union-generic-custom-class-or-null-rejects
+  (testing ":integer is not compatible with ((my-class-c (:string)) :null)"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f :t] ([x ((my-class-c (:string)) :null)]) x)
+          (defun [test-it :t] ([n :integer]) (f n))")
+      (ng result)
+      (ok (not (null errors))))))
+
+(deftest test-union-generic-multi-param-or-null-accepts
+  (testing "(my-class-d (my-class-e my-class-f)) is compatible with ((my-class-d (my-class-e my-class-f)) :null)"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x ((my-class-d (my-class-e my-class-f)) :null)]) x)
+                    (defun [test-it :t] ([d (my-class-d (my-class-e my-class-f))]) (f d))")))
+      (ok (null errors)))))
+
+(deftest test-union-generic-multi-param-or-null-rejects
+  (testing ":integer is not compatible with ((my-class-d (my-class-e my-class-f)) :null)"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f :t] ([x ((my-class-d (my-class-e my-class-f)) :null)]) x)
+          (defun [test-it :t] ([n :integer]) (f n))")
+      (ng result)
+      (ok (not (null errors))))))
+
 ;;; Class subtype compatibility
 
 (deftest test-class-subtype-reverse
