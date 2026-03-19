@@ -29,6 +29,10 @@ exec ros -Q -- $0 "$@"
   (format t "~&  check-all <file.asd>~%")
   (format t "~&      Check all .tycl files defined in a .asd file~%")
   (format t "~&      Processes all tycl-file components in all tycl-systems~%~%")
+  (format t "~&  install <package-name>~%")
+  (format t "~&      Download type declarations for a package from tycl-declarations repository~%")
+  (format t "~&      Files are saved to tycl-declarations/ in the current directory~%")
+  (format t "~&      Set TYCL_DECLARATIONS_URL to override the repository base URL~%~%")
   (format t "~&  lsp [--swank [port]]~%")
   (format t "~&      Start LSP server (Language Server Protocol)~%")
   (format t "~&      Communicates via stdin/stdout using JSON-RPC~%")
@@ -42,6 +46,8 @@ exec ros -Q -- $0 "$@"
   (format t "~&  tycl transpile-all sample-project.asd~%")
   (format t "~&  tycl check src/example.tycl~%")
   (format t "~&  tycl check-all sample-project.asd~%")
+  (format t "~&  tycl install common-lisp~%")
+  (format t "~&  tycl install cl-ppcre~%")
   (format t "~&  tycl lsp~%")
   (format t "~&  tycl lsp --swank~%")
   (format t "~&  tycl lsp --swank 9999~%"))
@@ -138,6 +144,54 @@ exec ros -Q -- $0 "$@"
            (format t "~&Error during type checking: ~A~%" e)
            (uiop:quit 1)))))))
 
+(defvar *declarations-base-url*
+  (or (uiop:getenv "TYCL_DECLARATIONS_URL")
+      "https://raw.githubusercontent.com/tamurashingo/tycl-declarations/main")
+  "Base URL for tycl-declarations repository.
+   Can be overridden with TYCL_DECLARATIONS_URL environment variable.")
+
+(defun declarations-file-url (package-name)
+  "Build the URL for a declaration file.
+   e.g. common-lisp -> <base>/packages/common-lisp/common-lisp.d.tycl"
+  (format nil "~A/packages/~A/~A.d.tycl"
+          *declarations-base-url* package-name package-name))
+
+(defun download-file (url output-path)
+  "Download a file from URL to OUTPUT-PATH using dexador.
+   Returns T on success, signals error on failure."
+  #+quicklisp(ql:quickload '(:dexador) :silent t)
+  (let ((dex-fetch (find-symbol "FETCH" (find-package :dexador))))
+    (unless dex-fetch
+      (error "dexador is not available. Install it via Quicklisp."))
+    (ensure-directories-exist output-path)
+    (funcall dex-fetch url output-path :if-exists :supersede)
+    t))
+
+(defun cmd-install (argv)
+  "Handle install command - download declaration files from tycl-declarations repository"
+  (cond
+    ((null argv)
+     (format t "~&Error: No package name specified~%")
+     (print-usage)
+     (uiop:quit 1))
+    (t
+     (let ((package-name (first argv)))
+       (handler-case
+           (let* ((url (declarations-file-url package-name))
+                  (output-dir (merge-pathnames
+                               (make-pathname :directory `(:relative "tycl-declarations"))
+                               *default-pathname-defaults*))
+                  (output-path (merge-pathnames
+                                (format nil "~A.d.tycl" package-name)
+                                output-dir)))
+             (format t "~&Downloading ~A...~%" url)
+             (download-file url output-path)
+             (format t "~&Installed to ~A~%" output-path)
+             (uiop:quit 0))
+         (error (e)
+           (format t "~&Error installing ~A: ~A~%" package-name e)
+           (uiop:quit 1)))))))
+
 (defun start-swank-server (port)
   "Start Swank server on the specified port"
   #+quicklisp(ql:quickload '(:swank) :silent t)
@@ -216,7 +270,11 @@ exec ros -Q -- $0 "$@"
     ;; Check command
     ((string= (first argv) "check")
      (cmd-check (rest argv)))
-    
+
+    ;; Install command
+    ((string= (first argv) "install")
+     (cmd-install (rest argv)))
+
     ;; LSP command
     ((string= (first argv) "lsp")
      (cmd-lsp (rest argv)))

@@ -61,6 +61,29 @@ Type check all `.tycl` files defined in a `.asd` file. Pre-loads `tycl-types.d.l
 tycl check-all <file.asd>
 ```
 
+### tycl install
+
+Download type declaration files for external libraries from the [tycl-declarations](https://github.com/tamurashingo/tycl-declarations) repository. Downloaded files are saved to `tycl-declarations/` in the current directory, where `check-all` and `transpile-all` automatically load them.
+
+```bash
+tycl install <package-name>
+```
+
+```bash
+# Install Common Lisp standard library declarations
+tycl install common-lisp
+
+# Install declarations for cl-ppcre
+tycl install cl-ppcre
+```
+
+To use a custom declarations repository, set the `TYCL_DECLARATIONS_URL` environment variable:
+
+```bash
+TYCL_DECLARATIONS_URL=https://raw.githubusercontent.com/yourname/your-declarations/main \
+  tycl install my-library
+```
+
 ### tycl lsp
 
 Start the Language Server Protocol server. See the [LSP](#lsp) section for details.
@@ -449,6 +472,17 @@ You can also declare classes:
 (defun [connect db-connection] ([host :string] [port :integer]))
 (defun [query :list] ([conn db-connection] [sql :string]))
 ```
+
+### Installing Community Declarations
+
+Use `tycl install` to download pre-made declaration files from the [tycl-declarations](https://github.com/tamurashingo/tycl-declarations) repository:
+
+```bash
+tycl install common-lisp
+tycl install cl-ppcre
+```
+
+This downloads files into `tycl-declarations/` in the current directory. See [tycl install](#tycl-install) for details.
 
 ### Discovery and Loading
 
