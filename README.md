@@ -165,6 +165,7 @@ Rest parameters collect all remaining arguments into a list. The type annotation
 - **Sequences**: `:list`, `:vector`, `:array`, `:cons`
 - **Logic**: `:boolean`, `:symbol`, `:keyword`
 - **Control**: `:void` (no return value), `:null`, `:t` (any type)
+- **Multiple values**: `:values` (see [Multiple Values](#multiple-values))
 - **Others**: `:function`, `:hash-table`, `:stream`, `:pathname`
 
 #### Union Types
@@ -186,6 +187,30 @@ Accept multiple types:
 (defun [parse-items ((:list (:string)) :null)] ([input :string])
   (when (valid-p input)
     (split-string input)))
+```
+
+#### Multiple Values
+
+Functions that return multiple values use `:values`:
+
+```lisp
+;; Return quotient and remainder
+(defun [div-mod (:values :integer :integer)] ([n :integer] [d :integer])
+  (floor n d))
+
+;; Return value and success flag
+(defun [safe-parse (:values :number :boolean)] ([s :string])
+  (handler-case
+      (values (parse-integer s) t)
+    (error () (values 0 nil))))
+```
+
+When a function declared with `(:values :integer :string)` is called in a context that expects a single value (e.g., `:integer`), the type checker treats the first value as the effective return type. This matches Common Lisp's behavior where `multiple-value-bind` captures all values but ordinary binding receives only the first.
+
+```lisp
+;; (:values :number :boolean) is compatible with :number
+(defun [parse-or-zero :number] ([s :string])
+  (safe-parse s))  ; second value (boolean) is discarded
 ```
 
 ### Custom Type Definitions (deftype-tycl)

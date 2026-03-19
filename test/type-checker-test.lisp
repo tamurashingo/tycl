@@ -709,3 +709,75 @@
           (defun [test-it :t] ([f foo]) (process f))")
       (ng result "foo is not a subtype of bar")
       (ok (not (null errors))))))
+
+;;; Multiple values type
+
+(deftest test-values-type-valid
+  (testing "(:values :integer :string) is a valid defun return type"
+    (let ((errors (check-and-get-errors
+                   "(defun [f (:values :integer :string)] ([x :integer] [y :string])
+                      (values x y))")))
+      (ok (null errors)))))
+
+(deftest test-values-type-mismatch
+  (testing "Returning (values string integer) for (:values :integer :string) is an error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f (:values :integer :string)] ([x :integer] [y :string])
+            (values y x))")
+      (ng result)
+      (ok (not (null errors))))))
+
+(deftest test-values-type-wrong-count
+  (testing "Returning 2 values for (:values :integer :string :boolean) is an error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f (:values :integer :string :boolean)] ([x :integer] [y :string])
+            (values x y))")
+      (ng result)
+      (ok (not (null errors))))))
+
+(deftest test-values-type-as-arg
+  (testing "(:values :integer :string) return can be passed where (:values :integer :string) is expected"
+    (let ((errors (check-and-get-errors
+                   "(defun [f (:values :integer :string)] ([x :integer] [y :string])
+                      (values x y))
+                    (defun [g (:values :integer :string)] ()
+                      (f 1 \"hello\"))")))
+      (ok (null errors)))))
+
+(deftest test-values-single-compatible-with-plain
+  (testing "(:values :integer) is compatible with :integer"
+    (let ((errors (check-and-get-errors
+                   "(defun [f (:values :integer)] ([x :integer])
+                      (values x))
+                    (defun [g :integer] ()
+                      (f 42))")))
+      (ok (null errors)))))
+
+(deftest test-values-number-accepts-integer
+  (testing "Returning (values integer string) for (:values :number :string) is OK"
+    (let ((errors (check-and-get-errors
+                   "(defun [f (:values :number :string)] ([x :integer] [y :string])
+                      (values x y))")))
+      (ok (null errors)))))
+
+(deftest test-values-first-value-compatible
+  (testing "(:values :integer :string) is compatible with :integer (first value)"
+    (let ((errors (check-and-get-errors
+                   "(defun [f (:values :integer :string)] ([x :integer] [y :string])
+                      (values x y))
+                    (defun [g :integer] ()
+                      (f 1 \"hello\"))")))
+      (ok (null errors)))))
+
+(deftest test-values-first-value-mismatch
+  (testing "(:values :string :integer) is not compatible with :integer (first value is string)"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f (:values :string :integer)] ([x :string] [y :integer])
+            (values x y))
+          (defun [g :integer] ()
+            (f \"hello\" 1))")
+      (ng result)
+      (ok (not (null errors))))))

@@ -140,6 +140,20 @@
    Handles union types and :t (any type)."
   (let ((actual (tycl::resolve-type-alias actual *current-package*))
         (expected (tycl::resolve-type-alias expected *current-package*)))
+    ;; Multiple values type: (:values :integer :string) matches element-wise
+    (when (and (consp actual) (eq (first actual) :values)
+               (consp expected) (eq (first expected) :values))
+      (return-from type-compatible-p
+        (and (= (length actual) (length expected))
+             (every #'type-compatible-p (rest actual) (rest expected)))))
+    ;; (:values T ...) used where a single type is expected:
+    ;; compare using the first value (CL discards extra values in single-value context)
+    (when (and (consp actual) (eq (first actual) :values)
+               (not (and (consp expected) (eq (first expected) :values))))
+      (setf actual (second actual)))
+    (when (and (consp expected) (eq (first expected) :values)
+               (not (and (consp actual) (eq (first actual) :values))))
+      (setf expected (second expected)))
     ;; Unwrap single-element type parameter lists: (:string) -> :string
     ;; Generic type parameters are wrapped in parens, e.g. (:list (:string)).
     ;; When recursing into parameters, (:string) is passed as a type,
@@ -236,6 +250,10 @@
             (if (type-compatible-p then-type else-type)
                 then-type
                 :t)))
+
+         ;; values form: (values x y) -> (:values type-of-x type-of-y)
+         ((eq op 'values)
+          (cons :values (mapcar (lambda (e) (infer-type e env)) (rest expr))))
 
          ;; lambda: return :function
          ((eq op 'lambda) :function)

@@ -119,7 +119,7 @@
     :string :character :simple-string
     :boolean :symbol :keyword
     :list :vector :array :hash-table :cons
-    :stream :pathname :function :t :void :null :any)
+    :stream :pathname :function :t :void :null :any :values)
   "List of valid TyCL type keywords")
 
 ;;; Global Type Database Instance
