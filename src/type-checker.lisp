@@ -140,6 +140,15 @@
    Handles union types and :t (any type)."
   (let ((actual (tycl::resolve-type-alias actual *current-package*))
         (expected (tycl::resolve-type-alias expected *current-package*)))
+    ;; Unwrap single-element type parameter lists: (:string) -> :string
+    ;; Generic type parameters are wrapped in parens, e.g. (:list (:string)).
+    ;; When recursing into parameters, (:string) is passed as a type,
+    ;; but it's really just :string. Without unwrapping, (:integer) vs (:number)
+    ;; would fall into generic comparison and fail.
+    (when (and (consp actual) (null (rest actual)) (atom (first actual)))
+      (setf actual (first actual)))
+    (when (and (consp expected) (null (rest expected)) (atom (first expected)))
+      (setf expected (first expected)))
     (cond
       ;; Any type accepts everything
       ((or (eq expected :t) (eq expected :any)) t)

@@ -501,6 +501,106 @@
       (ng result)
       (ok (not (null errors))))))
 
+;;; Generic types with :t (any) parameters
+
+(deftest test-generic-list-t-accepts-list-string
+  (testing "(:list (:string)) is compatible with (:list (:t))"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x (:list (:t))]) x)
+                    (defun [test-it :t] ([items (:list (:string))]) (f items))")))
+      (ok (null errors)))))
+
+(deftest test-generic-list-t-accepts-list-integer
+  (testing "(:list (:integer)) is compatible with (:list (:t))"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x (:list (:t))]) x)
+                    (defun [test-it :t] ([items (:list (:integer))]) (f items))")))
+      (ok (null errors)))))
+
+(deftest test-generic-hash-table-t-accepts-specific
+  (testing "(:hash-table (:string) (:integer)) is compatible with (:hash-table (:string) (:t))"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x (:hash-table (:string) (:t))]) x)
+                    (defun [test-it :t] ([tbl (:hash-table (:string) (:integer))]) (f tbl))")))
+      (ok (null errors)))))
+
+(deftest test-generic-list-number-accepts-list-integer
+  (testing "(:list (:integer)) is compatible with (:list (:number))"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x (:list (:number))]) x)
+                    (defun [test-it :t] ([items (:list (:integer))]) (f items))")))
+      (ok (null errors)))))
+
+(deftest test-generic-list-number-accepts-list-float
+  (testing "(:list (:float)) is compatible with (:list (:number))"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x (:list (:number))]) x)
+                    (defun [test-it :t] ([items (:list (:float))]) (f items))")))
+      (ok (null errors)))))
+
+;;; Hash-table generic parameter compatibility with unwrapping
+
+(deftest test-hash-table-number-value-accepts-integer
+  (testing "(:hash-table (:string) (:integer)) is compatible with (:hash-table (:string) (:number))"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x (:hash-table (:string) (:number))]) x)
+                    (defun [test-it :t] ([tbl (:hash-table (:string) (:integer))]) (f tbl))")))
+      (ok (null errors)))))
+
+(deftest test-hash-table-t-value-accepts-any
+  (testing "(:hash-table (:string) (:integer)) is compatible with (:hash-table (:string) (:t))"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x (:hash-table (:string) (:t))]) x)
+                    (defun [test-it :t] ([tbl (:hash-table (:string) (:integer))]) (f tbl))")))
+      (ok (null errors)))))
+
+(deftest test-hash-table-key-mismatch-rejects
+  (testing "(:hash-table (:integer) (:string)) is not compatible with (:hash-table (:string) (:string))"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f :t] ([x (:hash-table (:string) (:string))]) x)
+          (defun [test-it :t] ([tbl (:hash-table (:integer) (:string))]) (f tbl))")
+      (ng result)
+      (ok (not (null errors))))))
+
+(deftest test-hash-table-nested-generic-value
+  (testing "(:hash-table (:string) (:list (:integer))) is compatible with same type"
+    (let ((errors (check-and-get-errors
+                   "(defun [f :t] ([x (:hash-table (:string) (:list (:integer)))]) x)
+                    (defun [test-it :t] ([tbl (:hash-table (:string) (:list (:integer)))]) (f tbl))")))
+      (ok (null errors)))))
+
+(deftest test-hash-table-nested-generic-value-mismatch
+  (testing "(:hash-table (:string) (:list (:string))) is not compatible with (:hash-table (:string) (:list (:integer)))"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defun [f :t] ([x (:hash-table (:string) (:list (:integer)))]) x)
+          (defun [test-it :t] ([tbl (:hash-table (:string) (:list (:string)))]) (f tbl))")
+      (ng result)
+      (ok (not (null errors))))))
+
+;;; Generic type parameters with class subtype compatibility
+
+(deftest test-generic-list-subclass-accepts
+  (testing "(:list bar) is compatible with (:list foo) when bar extends foo"
+    (let ((errors (check-and-get-errors
+                   "(defclass foo () ())
+                    (defclass bar (foo) ())
+                    (defun [f :t] ([x (:list (foo))]) x)
+                    (defun [test-it :t] ([items (:list (bar))]) (f items))")))
+      (ok (null errors)))))
+
+(deftest test-generic-list-superclass-rejects
+  (testing "(:list foo) is not compatible with (:list bar) when bar extends foo"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defclass foo () ())
+          (defclass bar (foo) ())
+          (defun [f :t] ([x (:list (bar))]) x)
+          (defun [test-it :t] ([items (:list (foo))]) (f items))")
+      (ng result)
+      (ok (not (null errors))))))
+
 ;;; Union types with generic types
 
 (deftest test-union-list-string-or-null-accepts-list
