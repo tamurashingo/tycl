@@ -42,14 +42,31 @@
   (1+ (count #\Newline source-string :end (min position (length source-string)))))
 
 (defun resolve-type-info-for-symbol (sym)
-  "Look up type info for SYM, trying its home package first,
-   then *current-package* as fallback."
+  "Look up type info for SYM.
+   Tries: 1) home package, 2) packages where SYM is accessible
+   (handles re-exported symbols like batis:parse -> batis.sqlparser:parse),
+   3) *current-package* as fallback."
   (let* ((sym-name (string-upcase (symbol-name sym)))
          (home-pkg (symbol-package sym))
          (home-pkg-name (when home-pkg (package-name home-pkg))))
-    (or (when (and home-pkg-name
-                   (not (string= home-pkg-name *current-package*)))
+    (or ;; 1. Try home package
+        (when home-pkg-name
           (tycl:get-type-info home-pkg-name sym-name))
+        ;; 2. Try packages registered in type DB where SYM is accessible
+        (let ((db-packages (tycl::db-package-index tycl::*type-database*)))
+          (maphash (lambda (pkg-name symbols)
+                     (declare (ignore symbols))
+                     (let ((pkg (find-package pkg-name)))
+                       (when pkg
+                         (multiple-value-bind (found-sym status)
+                             (find-symbol sym-name pkg)
+                           (when (and status (eq found-sym sym))
+                             (let ((info (tycl:get-type-info pkg-name sym-name)))
+                               (when info
+                                 (return-from resolve-type-info-for-symbol info))))))))
+                   db-packages)
+          nil)
+        ;; 3. Fallback to current package
         (tycl:get-type-info *current-package* sym-name))))
 
 (defclass type-error-info ()
