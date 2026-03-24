@@ -84,6 +84,9 @@
            #:function-type-params
            #:method-type-info
            #:method-specializers
+           #:generic-function-type-info
+           #:generic-function-methods
+           #:add-method-to-generic-function
            #:class-type-info
            #:class-slots
            #:class-superclasses

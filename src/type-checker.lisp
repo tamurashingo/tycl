@@ -378,6 +378,9 @@
                (not (valid-type-p return-type)))
       (record-type-error name-spec
                           (format nil "Invalid return type: ~S" return-type)))
+    ;; For defmethod: validate against defgeneric
+    (when (eq (first form) 'defmethod)
+      (check-defmethod-against-defgeneric form func-name return-type params-spec env))
     ;; Build parameter environment
     (let ((body-env (build-param-env params-spec env)))
       ;; Check body forms
@@ -392,8 +395,19 @@
                                 (format nil "Return type mismatch: declared ~S but body returns ~S"
                                         return-type inferred))))))
     ;; Register function in env for forward references within local scope
-    (let ((param-types (extract-param-types params-spec)))
-      (push (cons func-name `(:function ,return-type ,param-types)) env))
+    (if (eq (first form) 'defmethod)
+        ;; For defmethod: register with :t param types if not already in env
+        ;; (generic functions accept any specializer at call site)
+        (unless (assoc func-name env)
+          (let ((param-types (mapcar (lambda (p)
+                                       (list :name (getf p :name)
+                                             :type :t
+                                             :kind (getf p :kind)))
+                                     (extract-param-types params-spec))))
+            (push (cons func-name `(:function ,return-type ,param-types)) env)))
+        ;; For defun: register with declared param types
+        (let ((param-types (extract-param-types params-spec)))
+          (push (cons func-name `(:function ,return-type ,param-types)) env)))
     env))
 
 (defun check-let (form env)
@@ -510,6 +524,84 @@
       (setf body-env (check-form expr body-env)))
     ;; Return original env
     env))
+
+(defun check-defgeneric (form env)
+  "Check types in a defgeneric form.
+   (defgeneric [name return-type] ([params...]) ...)
+   Validates type annotations and registers the generic function in env."
+  (let* ((name-spec (second form))
+         (params-spec (third form))
+         (func-name (if (tycl/annotation:type-annotation-p name-spec)
+                        (tycl/annotation:annotation-symbol name-spec)
+                        name-spec))
+         (return-type (if (tycl/annotation:type-annotation-p name-spec)
+                          (tycl/annotation:annotation-type name-spec)
+                          :t)))
+    ;; Validate return type
+    (when (and (tycl/annotation:type-annotation-p name-spec)
+               (not (valid-type-p return-type)))
+      (record-type-error name-spec
+                          (format nil "Invalid return type for generic function: ~S" return-type)))
+    ;; Validate parameter types
+    (dolist (param params-spec)
+      (when (tycl/annotation:type-annotation-p param)
+        (let ((type (tycl/annotation:annotation-type param)))
+          (unless (valid-type-p type)
+            (record-type-error param
+                                (format nil "Invalid parameter type in generic function: ~S" type))))))
+    ;; Register in env for forward references
+    (let ((param-types (extract-param-types params-spec)))
+      (push (cons func-name `(:function ,return-type ,param-types)) env))
+    env))
+
+(defun check-defmethod-against-defgeneric (form func-name return-type params-spec env)
+  "Validate that a defmethod is consistent with its defgeneric.
+   Checks return type compatibility, argument count, and specializer validity."
+  (let* ((sym-name (string-upcase (symbol-name func-name)))
+         (generic-info (or (tycl:get-type-info *current-package* sym-name)
+                           (resolve-type-info-for-symbol func-name))))
+    (when (and generic-info (typep generic-info 'tycl:generic-function-type-info))
+      (let ((generic-return (tycl:function-return-type generic-info))
+            (generic-params (tycl:function-params generic-info)))
+        ;; Check return type compatibility
+        (when (and (not (eq return-type :t))
+                   (not (eq generic-return :t))
+                   (not (type-compatible-p return-type generic-return)))
+          (record-type-error
+           form
+           (format nil "defmethod ~S: return type ~S is incompatible with defgeneric return type ~S"
+                   func-name return-type generic-return)))
+        ;; Check argument count (excluding &optional/&key/&rest markers)
+        (let* ((method-params (remove-if (lambda (p)
+                                            (and (symbolp p)
+                                                 (member (symbol-name p)
+                                                         '("&OPTIONAL" "&KEY" "&REST")
+                                                         :test #'string=)))
+                                          params-spec))
+               (generic-required (remove-if-not
+                                  (lambda (p) (member (getf p :kind) '(:required nil)))
+                                  generic-params))
+               ;; Count actual params (annotations and symbols, not default-value lists counted separately)
+               (method-param-count (length method-params))
+               (generic-required-count (length generic-required)))
+          (unless (= method-param-count generic-required-count)
+            (record-type-error
+             form
+             (format nil "defmethod ~S: expected ~D required parameters (matching defgeneric), got ~D"
+                     func-name generic-required-count method-param-count))))
+        ;; Check specializer validity (each specializer must be a subtype of defgeneric's param type)
+        (let ((method-params-extracted (extract-param-types params-spec)))
+          (loop for method-param in method-params-extracted
+                for generic-param in generic-params
+                for method-type = (getf method-param :type)
+                for generic-type = (getf generic-param :type)
+                when (and (not (eq method-type :t))
+                          (not (eq generic-type :t))
+                          (not (type-compatible-p method-type generic-type)))
+                do (record-type-error
+                    form
+                    (format nil "defmethod ~S: specializer ~S is not a subtype of defgeneric parameter type ~S"
+                            func-name method-type generic-type))))))))
 
 (defun check-lambda (form env)
   "Check types in a lambda form.
@@ -720,6 +812,9 @@
          ;; defun / defmethod
          ((member op '(defun defmethod))
           (check-defun form env))
+         ;; defgeneric
+         ((eq op 'defgeneric)
+          (check-defgeneric form env))
          ;; let / let*
          ((member op '(let let*))
           (check-let form env))

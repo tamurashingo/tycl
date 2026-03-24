@@ -80,6 +80,17 @@
   (:default-initargs :kind :class)
   (:documentation "Type information for classes and structures"))
 
+;;; Generic Function Type Info
+
+(defclass generic-function-type-info (function-type-info)
+  ((methods :initarg :methods
+            :accessor generic-function-methods
+            :initform nil
+            :type list
+            :documentation "List of method-type-info associated with this generic function"))
+  (:default-initargs :kind :generic-function)
+  (:documentation "Type information for generic functions defined by defgeneric"))
+
 ;;; Type Alias Info
 
 (defclass type-alias-info (type-info)
@@ -194,6 +205,21 @@
                   :return-type return-type
                   :specializers specializers
                   :source-location source-location)))
+
+(defun make-generic-function-type-info (package symbol params return-type &key source-location type-params)
+  "Create and register a generic function type info"
+  (register-type-info
+   (make-instance 'generic-function-type-info
+                  :package package
+                  :symbol symbol
+                  :params params
+                  :return-type return-type
+                  :type-params type-params
+                  :source-location source-location)))
+
+(defun add-method-to-generic-function (generic-info method-info)
+  "Associate a method-type-info with a generic-function-type-info"
+  (push method-info (generic-function-methods generic-info)))
 
 (defun make-class-type-info (package symbol slots superclasses &key source-location)
   "Create and register a class type info"

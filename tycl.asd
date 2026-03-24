@@ -63,7 +63,8 @@
                  (:file "type-checker-test")
                  (:file "deftype-tycl-test")
                  (:file "type-vars-test")
-                 (:file "declarations-test")))
+                 (:file "declarations-test")
+                 (:file "defgeneric-test")))
                (:module "test/lsp"
                 :components
                 ((:file "did-change-test")

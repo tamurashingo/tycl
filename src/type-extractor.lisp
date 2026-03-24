@@ -24,6 +24,7 @@
         ((eq operator 'defparameter) (extract-defparameter-type form))
         ((eq operator 'defconstant) (extract-defconstant-type form))
         ((eq operator 'defclass) (extract-defclass-type form))
+        ((eq operator 'defgeneric) (extract-defgeneric-type form))
         ((eq operator 'defmethod) (extract-defmethod-type form))
         ((eq operator 'in-package) (update-current-package form))
         ((string= (symbol-name operator) "DEFTYPE-TYCL") (extract-deftype-tycl form))
@@ -181,6 +182,38 @@
         collect (list :name (string-upcase (symbol-name slot-name))
                       :type slot-type)))
 
+;;; defgeneric Type Extraction
+
+(defun extract-defgeneric-type (form)
+  "Extract type information from defgeneric form
+   (defgeneric [name return-type] ([params...]) ...)
+   (defgeneric [name {T} return-type] ([params...]) ...)"
+  (when (< (length form) 3)
+    (return-from extract-defgeneric-type nil))
+  (let* ((name-spec (second form))
+         (params-spec (third form))
+         (name (if (tycl/annotation:type-annotation-p name-spec)
+                   (tycl/annotation:annotation-symbol name-spec)
+                   name-spec))
+         (return-type (if (tycl/annotation:type-annotation-p name-spec)
+                          (tycl/annotation:annotation-type name-spec)
+                          :t))
+         (type-params (when (and (tycl/annotation:type-annotation-p name-spec)
+                                 (tycl/annotation:annotation-type-params name-spec))
+                        (mapcar (lambda (sym)
+                                  (string-upcase (symbol-name sym)))
+                                (tycl/annotation:type-params-entries
+                                 (tycl/annotation:annotation-type-params name-spec)))))
+         (params (extract-params-types params-spec)))
+    (when (and name (symbolp name))
+      (make-generic-function-type-info
+       *current-package*
+       (string-upcase (symbol-name name))
+       params
+       return-type
+       :source-location *current-file*
+       :type-params type-params))))
+
 ;;; defmethod Type Extraction
 
 (defun extract-defmethod-type (form)
@@ -207,13 +240,41 @@
          (specializers (extract-method-specializers params-spec)))
     (declare (ignore type-params))
     (when (and name (symbolp name))
-      (make-method-type-info
-       *current-package*
-       (string-upcase (symbol-name name))
-       params
-       return-type
-       specializers
-       :source-location *current-file*))))
+      (let* ((sym-name (string-upcase (symbol-name name)))
+             (method-info (make-instance 'method-type-info
+                                         :package *current-package*
+                                         :symbol sym-name
+                                         :params params
+                                         :return-type return-type
+                                         :specializers specializers
+                                         :source-location *current-file*))
+             (existing (lookup-type-info *current-package* sym-name)))
+        (cond
+          ;; defgeneric already exists: add method to it
+          ((and existing (typep existing 'generic-function-type-info))
+           (add-method-to-generic-function existing method-info)
+           method-info)
+          ;; Another defmethod already exists (no defgeneric): auto-create
+          ;; a generic-function-type-info with :t param types to hold all methods
+          ((and existing (typep existing 'method-type-info))
+           (let* ((generic-params (mapcar (lambda (p)
+                                            (list :name (getf p :name)
+                                                  :type :t
+                                                  :kind (getf p :kind)))
+                                          (function-params existing)))
+                  (generic-info (make-instance 'generic-function-type-info
+                                               :package *current-package*
+                                               :symbol sym-name
+                                               :params generic-params
+                                               :return-type :t
+                                               :source-location (type-info-source-location existing))))
+             (register-type-info generic-info)
+             (add-method-to-generic-function generic-info existing)
+             (add-method-to-generic-function generic-info method-info)
+             method-info))
+          ;; First defmethod for this name (no defgeneric): register as method
+          (t
+           (register-type-info method-info)))))))
 
 (defun extract-method-specializers (params-spec)
   "Extract method specializers from parameter list"
