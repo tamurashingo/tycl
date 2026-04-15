@@ -43,13 +43,25 @@
            #:find-user
            #:list-users))
 
+(defpackage #:sample-project/animals
+  (:use #:cl)
+  (:export #:animal #:animal-name
+           #:dog #:dog-breed
+           #:cat #:cat-color
+           #:say
+           #:introduce
+           #:describe-animal
+           #:book #:product #:get-label
+           #:print-labels))
+
 (defpackage #:sample-project/main
   (:use #:cl
         #:sample-project/math
         #:sample-project/string-utils
         #:sample-project/config
         #:sample-project/collections
-        #:sample-project/api)
+        #:sample-project/api
+        #:sample-project/animals)
   (:export #:format-result
            #:describe-app
            #:run))

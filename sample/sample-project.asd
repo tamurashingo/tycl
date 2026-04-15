@@ -19,6 +19,7 @@
   :tycl-output-dir "build/"
   :tycl-extract-types t
   :tycl-save-types t
+  :depends-on ("cl-ppcre")
   :components ((:module "src"
                 :serial t
                 :components
@@ -28,6 +29,7 @@
                  (:tycl-file "collections")
                  (:tycl-file "models")
                  (:tycl-file "api")
+                 (:tycl-file "animals")
                  (:file "config")
                  (:tycl-file "main"))))
   :in-order-to ((test-op (test-op "sample-project/test-rove"))))

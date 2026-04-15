@@ -46,7 +46,17 @@
       (:value
        (append base-info
                `((:type . ,(type-to-json (value-type-spec type-info))))))
-      
+
+      (:generic-function
+       (append base-info
+               `((:params . ,(mapcar (lambda (param)
+                                      `((:name . ,(getf param :name))
+                                        (:type . ,(type-to-json (getf param :type)))))
+                                    (function-params type-info)))
+                 (:return . ,(type-to-json (function-return-type type-info)))
+                 ,@(when (function-type-params type-info)
+                     `((:type-params . ,(function-type-params type-info)))))))
+
       (:function
        (append base-info
                `((:params . ,(mapcar (lambda (param)
@@ -289,6 +299,7 @@
   "Create LSP completion item from type-info"
   (let ((kind (ecase (type-info-kind type-info)
                 (:function "Function")
+                (:generic-function "Function")
                 (:method "Method")
                 (:class "Class")
                 (:value "Variable")
@@ -327,7 +338,18 @@
   (ecase (type-info-kind type-info)
     (:value
      (format nil "~a" (value-type-spec type-info)))
-    
+
+    (:generic-function
+     (format nil "generic ~A(~{~a~^ ~}) → ~a"
+             (if (function-type-params type-info)
+                 (format nil "{~{~A~^, ~}}" (function-type-params type-info))
+                 "")
+             (insert-optional-marker
+              (mapcar (lambda (p) (getf p :type))
+                      (function-params type-info))
+              (function-params type-info))
+             (function-return-type type-info)))
+
     (:function
      (format nil "~A(~{~a~^ ~}) → ~a"
              (if (function-type-params type-info)
@@ -375,6 +397,24 @@
       (:value
        (format s "Type: `~a`" (value-type-spec type-info)))
       
+      (:generic-function
+       (format s "```lisp~%")
+       (let ((param-names (insert-optional-marker
+                           (mapcar (lambda (p) (getf p :name))
+                                   (function-params type-info))
+                           (function-params type-info))))
+         (if (function-type-params type-info)
+             (format s "(defgeneric [~a {~{~A~^ ~}} ~a] (~{~a~^ ~}))~%"
+                     (type-info-symbol type-info)
+                     (function-type-params type-info)
+                     (function-return-type type-info)
+                     param-names)
+             (format s "(defgeneric [~a ~a] (~{~a~^ ~}))~%"
+                     (type-info-symbol type-info)
+                     (function-return-type type-info)
+                     param-names)))
+       (format s "```"))
+
       (:function
        (format s "```lisp~%")
        (let ((param-names (insert-optional-marker

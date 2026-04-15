@@ -20,6 +20,11 @@
           (string= (symbol-name (car form)) "DEFTYPE-TYCL"))
      nil)
 
+    ;; defmethod - preserve specializers in parameter list
+    ((and (consp form) (symbolp (car form))
+          (string= (symbol-name (car form)) "DEFMETHOD"))
+     (transpile-defmethod form))
+
     ;; List - recursively process each element
     ((consp form)
      (cons (transpile-form (car form))
@@ -27,6 +32,53 @@
     
     ;; Atom - return as-is
     (t form)))
+
+(defun transpile-defmethod-param (param)
+  "Transpile a defmethod parameter, preserving the specializer as CLOS form.
+   [animal dog] -> (animal dog)  (specializer form for CLOS)
+   [x :integer] -> x            (keyword types are TyCL-only, not CLOS specializers)
+   x -> x                       (untyped parameter)"
+  (cond
+    ((type-annotation-p param)
+     (let ((sym (annotation-symbol param))
+           (type (annotation-type param)))
+       (if (and (symbolp type) (not (keywordp type)))
+           ;; User-defined class as specializer: (param class)
+           (list sym type)
+           ;; Keyword type annotation: strip to just the symbol
+           sym)))
+    ;; Default-value list: ([param type] default) -> ((param type) default) or (param default)
+    ((and (listp param) (not (type-annotation-p param)))
+     (cons (transpile-defmethod-param (first param))
+           (mapcar #'transpile-form (rest param))))
+    (t param)))
+
+(defun transpile-defmethod (form)
+  "Transpile a defmethod form, preserving specializers in the parameter list.
+   (defmethod [say :string] ([animal dog]) body...)
+   -> (defmethod say ((animal dog)) body...)"
+  (let* ((name (transpile-form (second form)))
+         (params-spec (third form))
+         (body (cdddr form))
+         (in-lambda-keyword nil)
+         (transpiled-params
+           (mapcar (lambda (param)
+                     (cond
+                       ;; Lambda list keywords: pass through
+                       ((and (symbolp param)
+                             (member (symbol-name param)
+                                     '("&OPTIONAL" "&KEY" "&REST")
+                                     :test #'string=))
+                        (setf in-lambda-keyword t)
+                        param)
+                       ;; After &optional/&key/&rest: no specializers
+                       (in-lambda-keyword
+                        (transpile-form param))
+                       ;; Required params: preserve specializers
+                       (t
+                        (transpile-defmethod-param param))))
+                   params-spec)))
+    `(defmethod ,name ,transpiled-params ,@(mapcar #'transpile-form body))))
 
 (defun process-reader-package-form (form)
   "Process in-package and defpackage forms to update *package* during reading.

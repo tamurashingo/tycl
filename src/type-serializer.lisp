@@ -12,6 +12,13 @@
      `(:value
        :symbol ,(type-info-symbol type-info)
        :type ,(value-type-spec type-info)))
+    (generic-function-type-info
+     `(:generic-function
+       :symbol ,(type-info-symbol type-info)
+       :params ,(function-params type-info)
+       :return ,(function-return-type type-info)
+       ,@(when (function-type-params type-info)
+           `(:type-params ,(function-type-params type-info)))))
     (function-type-info
      `(:function
        :symbol ,(type-info-symbol type-info)
@@ -138,6 +145,13 @@
         package
         (getf props :symbol)
         (getf props :type)))
+      (:generic-function
+       (make-generic-function-type-info
+        package
+        (getf props :symbol)
+        (getf props :params)
+        (getf props :return)
+        :type-params (getf props :type-params)))
       (:function
        (make-function-type-info
         package

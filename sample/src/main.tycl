@@ -29,6 +29,10 @@
                 #:add-user
                 #:find-user
                 #:list-users)
+  (:import-from #:sample-project/animals
+                #:animal #:dog #:cat
+                #:say #:introduce #:describe-animal
+                #:book #:product #:print-labels)
   (:export #:format-result
            #:describe-app
            #:run))
@@ -77,6 +81,17 @@
   (format t "~A~%" (list-users))
   (format t "find Alice: ~A~%" (find-user "Alice"))
   (format t "find Charlie: ~A~%" (find-user "Charlie"))
+  (format t "~%--- Animals (defgeneric/defmethod) ---~%")
+  (let ((pochi (make-instance 'dog :name "Pochi" :breed "Shiba"))
+        (tama (make-instance 'cat :name "Tama" :color "calico")))
+    (introduce pochi)
+    (introduce tama)
+    (format t "  ~A~%" (describe-animal pochi))
+    (format t "  ~A~%" (describe-animal tama)))
+  (format t "~%--- Shared Accessor (implicit defgeneric) ---~%")
+  (let ((b (make-instance 'book :title "Common Lisp the Language"))
+        (p (make-instance 'product :name "TyCL Compiler")))
+    (print-labels b p))
   (format t "~%Done.~%"))
 
 ;;; vim: set filetype=lisp :

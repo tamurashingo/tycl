@@ -24,6 +24,7 @@
         ((eq operator 'defparameter) (extract-defparameter-type form))
         ((eq operator 'defconstant) (extract-defconstant-type form))
         ((eq operator 'defclass) (extract-defclass-type form))
+        ((eq operator 'defgeneric) (extract-defgeneric-type form))
         ((eq operator 'defmethod) (extract-defmethod-type form))
         ((eq operator 'in-package) (update-current-package form))
         ((string= (symbol-name operator) "DEFTYPE-TYCL") (extract-deftype-tycl form))
@@ -160,12 +161,15 @@
          (slots-spec (fourth form))
          (slots (extract-slots-types slots-spec)))
     (when (and name (symbolp name))
-      (make-class-type-info
-       *current-package*
-       (string-upcase (symbol-name name))
-       slots
-       (mapcar (lambda (s) (string-upcase (symbol-name s))) supers)
-       :source-location *current-file*))))
+      (let ((class-name (string-upcase (symbol-name name))))
+        (make-class-type-info
+         *current-package*
+         class-name
+         slots
+         (mapcar (lambda (s) (string-upcase (symbol-name s))) supers)
+         :source-location *current-file*)
+        ;; Register accessor/reader functions with slot types
+        (extract-accessor-types slots-spec class-name)))))
 
 (defun extract-slots-types (slots-spec)
   "Extract slot types from defclass slots
@@ -180,6 +184,110 @@
                             :t)
         collect (list :name (string-upcase (symbol-name slot-name))
                       :type slot-type)))
+
+(defun extract-accessor-types (slots-spec class-name)
+  "Extract accessor/reader function type info from defclass slot options.
+   For each slot with :accessor or :reader, register a function that takes
+   an instance of the class and returns the slot's type.
+   If another class already registered the same accessor name, widen the
+   parameter type to :t (CLOS implicitly creates a shared generic function)."
+  (dolist (slot slots-spec)
+    (when (listp slot)
+      (let* ((slot-name-spec (first slot))
+             (slot-type (if (tycl/annotation:type-annotation-p slot-name-spec)
+                            (tycl/annotation:annotation-type slot-name-spec)
+                            :t))
+             (options (rest slot)))
+        ;; Scan slot options for :accessor and :reader
+        (loop for (key val) on options by #'cddr
+              when (and (member key '(:accessor :reader)) val (symbolp val))
+              do (let* ((accessor-name (string-upcase (symbol-name val)))
+                        (existing (lookup-type-info *current-package* accessor-name))
+                        (pkg (find-package *current-package*))
+                        (class-type-sym (if pkg
+                                            (intern class-name pkg)
+                                            (make-symbol class-name))))
+                   (if existing
+                       ;; Another class already registered this accessor;
+                       ;; widen param type to :t and return type to :t
+                       (when (typep existing 'function-type-info)
+                         (setf (function-params existing)
+                               (list (list :name "SELF" :type :t :kind :required)))
+                         (setf (function-return-type existing) :t))
+                       ;; First registration
+                       (make-function-type-info
+                        *current-package*
+                        accessor-name
+                        (list (list :name "SELF"
+                                    :type class-type-sym
+                                    :kind :required))
+                        slot-type
+                        :source-location *current-file*))))))))
+
+;;; Common Superclass Computation
+
+(defun get-class-ancestors (class-name package)
+  "Return a list of all ancestor class names (strings) for CLASS-NAME, including itself.
+   Walks the superclass chain using the type database."
+  (let ((result (list class-name))
+        (info (lookup-type-info package class-name)))
+    (when (and info (typep info 'class-type-info))
+      (dolist (super (class-superclasses info))
+        (setf result (append result (get-class-ancestors super package)))))
+    result))
+
+(defun find-common-superclass (type-a type-b package)
+  "Find the most specific common superclass of two types.
+   TYPE-A and TYPE-B are type specifiers (symbols or keywords).
+   Returns the common superclass symbol, or :t if none found."
+  (when (or (eq type-a :t) (eq type-b :t)
+            (keywordp type-a) (keywordp type-b))
+    (return-from find-common-superclass :t))
+  (let ((name-a (string-upcase (symbol-name type-a)))
+        (name-b (string-upcase (symbol-name type-b))))
+    (when (string= name-a name-b)
+      (return-from find-common-superclass type-a))
+    (let ((ancestors-a (get-class-ancestors name-a package))
+          (ancestors-b (get-class-ancestors name-b package)))
+      ;; Find first ancestor of A that is also an ancestor of B
+      (dolist (ancestor ancestors-a)
+        (when (member ancestor ancestors-b :test #'string=)
+          (let ((pkg (find-package package)))
+            (return-from find-common-superclass
+              (if pkg (intern ancestor pkg) (make-symbol ancestor))))))
+      :t)))
+
+;;; defgeneric Type Extraction
+
+(defun extract-defgeneric-type (form)
+  "Extract type information from defgeneric form
+   (defgeneric [name return-type] ([params...]) ...)
+   (defgeneric [name {T} return-type] ([params...]) ...)"
+  (when (< (length form) 3)
+    (return-from extract-defgeneric-type nil))
+  (let* ((name-spec (second form))
+         (params-spec (third form))
+         (name (if (tycl/annotation:type-annotation-p name-spec)
+                   (tycl/annotation:annotation-symbol name-spec)
+                   name-spec))
+         (return-type (if (tycl/annotation:type-annotation-p name-spec)
+                          (tycl/annotation:annotation-type name-spec)
+                          :t))
+         (type-params (when (and (tycl/annotation:type-annotation-p name-spec)
+                                 (tycl/annotation:annotation-type-params name-spec))
+                        (mapcar (lambda (sym)
+                                  (string-upcase (symbol-name sym)))
+                                (tycl/annotation:type-params-entries
+                                 (tycl/annotation:annotation-type-params name-spec)))))
+         (params (extract-params-types params-spec)))
+    (when (and name (symbolp name))
+      (make-generic-function-type-info
+       *current-package*
+       (string-upcase (symbol-name name))
+       params
+       return-type
+       :source-location *current-file*
+       :type-params type-params))))
 
 ;;; defmethod Type Extraction
 
@@ -207,13 +315,49 @@
          (specializers (extract-method-specializers params-spec)))
     (declare (ignore type-params))
     (when (and name (symbolp name))
-      (make-method-type-info
-       *current-package*
-       (string-upcase (symbol-name name))
-       params
-       return-type
-       specializers
-       :source-location *current-file*))))
+      (let* ((sym-name (string-upcase (symbol-name name)))
+             (method-info (make-instance 'method-type-info
+                                         :package *current-package*
+                                         :symbol sym-name
+                                         :params params
+                                         :return-type return-type
+                                         :specializers specializers
+                                         :source-location *current-file*))
+             (existing (lookup-type-info *current-package* sym-name)))
+        (cond
+          ;; defgeneric already exists: add method to it
+          ((and existing (typep existing 'generic-function-type-info))
+           (add-method-to-generic-function existing method-info)
+           method-info)
+          ;; Another defmethod already exists (no defgeneric): auto-create
+          ;; a generic-function-type-info with computed param types
+          ((and existing (typep existing 'method-type-info))
+           (let* ((generic-params
+                    (mapcar (lambda (p1 p2)
+                              (list :name (getf p1 :name)
+                                    :type (find-common-superclass
+                                           (getf p1 :type) (getf p2 :type)
+                                           *current-package*)
+                                    :kind (getf p1 :kind)))
+                            (function-params existing)
+                            (function-params method-info)))
+                  (generic-return-type
+                    (let ((rt1 (function-return-type existing))
+                          (rt2 (function-return-type method-info)))
+                      (if (equal rt1 rt2) rt1 :t)))
+                  (generic-info (make-instance 'generic-function-type-info
+                                               :package *current-package*
+                                               :symbol sym-name
+                                               :params generic-params
+                                               :return-type generic-return-type
+                                               :source-location (type-info-source-location existing))))
+             (register-type-info generic-info)
+             (add-method-to-generic-function generic-info existing)
+             (add-method-to-generic-function generic-info method-info)
+             method-info))
+          ;; First defmethod for this name (no defgeneric): register as method
+          (t
+           (register-type-info method-info)))))))
 
 (defun extract-method-specializers (params-spec)
   "Extract method specializers from parameter list"

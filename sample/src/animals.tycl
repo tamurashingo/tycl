@@ -1,0 +1,59 @@
+;;; -*- mode: lisp -*-
+;;;; Sample Project - Animals (TyCL)
+;;;; Demonstrates defgeneric/defmethod with class hierarchy
+(in-package #:cl-user)
+(defpackage #:sample-project/animals
+  (:use #:cl)
+  (:export #:animal #:animal-name
+           #:dog #:dog-breed
+           #:cat #:cat-color
+           #:say
+           #:introduce
+           #:describe-animal
+           #:book #:product #:get-label
+           #:print-labels))
+(in-package #:sample-project/animals)
+
+;;; Class hierarchy
+(defclass animal ()
+  (([name :string] :initarg :name :accessor animal-name)))
+
+(defclass dog (animal)
+  (([breed :string] :initarg :breed :accessor dog-breed)))
+
+(defclass cat (animal)
+  (([color :string] :initarg :color :accessor cat-color)))
+
+;;; Generic function with type annotations
+(defgeneric [say :string] ([animal animal]))
+
+(defmethod [say :string] ([animal dog])
+  (format nil "~A (a ~A dog): Woof!" (animal-name animal) (dog-breed animal)))
+
+(defmethod [say :string] ([animal cat])
+  (format nil "~A (a ~A cat): Meow!" (animal-name animal) (cat-color animal)))
+
+;;; Function that uses the generic function
+(defun [introduce :void] ([animal animal])
+  (format t "  ~A~%" (say animal)))
+
+;;; defmethod without defgeneric (implicit generic function)
+(defmethod [describe-animal :string] ([animal dog])
+  (format nil "Dog: ~A, breed: ~A" (animal-name animal) (dog-breed animal)))
+
+(defmethod [describe-animal :string] ([animal cat])
+  (format nil "Cat: ~A, color: ~A" (animal-name animal) (cat-color animal)))
+
+;;; Unrelated classes sharing the same accessor name
+;;; CLOS implicitly creates a single defgeneric with methods for each class
+(defclass book ()
+  (([title :string] :initarg :title :accessor get-label)))
+
+(defclass product ()
+  (([name :string] :initarg :name :accessor get-label)))
+
+(defun [print-labels :void] ([b book] [p product])
+  (format t "  Book label: ~A~%" (get-label b))
+  (format t "  Product label: ~A~%" (get-label p)))
+
+;;; vim: set filetype=lisp :
