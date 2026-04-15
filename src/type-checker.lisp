@@ -168,8 +168,12 @@
       ((or (eq expected :t) (eq expected :any)) t)
       ((or (eq actual :t) (eq actual :any)) t)
 
-      ;; Exact match
+      ;; Exact match (including uninterned symbols by name)
       ((equal actual expected) t)
+      ((and (symbolp actual) (symbolp expected)
+            (not (keywordp actual)) (not (keywordp expected))
+            (string= (symbol-name actual) (symbol-name expected)))
+       t)
 
       ;; Union type: expected is a list whose first element is NOT a keyword.
       ;; e.g. (:integer :string) has :integer (keyword) as first → ambiguous

@@ -263,3 +263,128 @@
                       (format t \"foo~%\"))")))
       (ok (search "defmethod" result) "should contain defmethod")
       (ok (search "(obj foo)" result) "should preserve specializer"))))
+
+;;; ============================================================
+;;; Accessor Type Inference Tests
+;;; ============================================================
+
+(deftest test-accessor-type-inference
+  (testing "defclass accessor registers function with correct return type"
+    (tycl:clear-type-database)
+    (let ((tycl:*current-package* "TEST-PKG"))
+      (tycl:extract-type-from-form
+       (let ((*readtable* tycl/reader:*tycl-readtable*))
+         (read-from-string "(defclass dog () (([breed :string] :initarg :breed :accessor dog-breed)))"))))
+    (let ((info (tycl:lookup-type-info "TEST-PKG" "DOG-BREED")))
+      (ok info "should register accessor type info")
+      (ok (typep info 'tycl:function-type-info)
+          "should be function-type-info")
+      (ok (eq (tycl:function-return-type info) :string)
+          "return type should be :string")
+      (ok (= (length (tycl:function-params info)) 1)
+          "should have 1 parameter"))))
+
+(deftest test-accessor-reader-type-inference
+  (testing "defclass :reader registers function with correct return type"
+    (tycl:clear-type-database)
+    (let ((tycl:*current-package* "TEST-PKG"))
+      (tycl:extract-type-from-form
+       (let ((*readtable* tycl/reader:*tycl-readtable*))
+         (read-from-string "(defclass person () (([name :string] :initarg :name :reader person-name)))"))))
+    (let ((info (tycl:lookup-type-info "TEST-PKG" "PERSON-NAME")))
+      (ok info "should register reader type info")
+      (ok (eq (tycl:function-return-type info) :string)
+          "return type should be :string"))))
+
+(deftest test-accessor-shared-across-classes
+  (testing "Same accessor on different classes widens param type to :t"
+    (tycl:clear-type-database)
+    (let ((tycl:*current-package* "TEST-PKG"))
+      (dolist (form-str '("(defclass book () (([title :string] :initarg :title :accessor get-label)))"
+                          "(defclass product () (([name :string] :initarg :name :accessor get-label)))"))
+        (tycl:extract-type-from-form
+         (let ((*readtable* tycl/reader:*tycl-readtable*))
+           (read-from-string form-str)))))
+    (let ((info (tycl:lookup-type-info "TEST-PKG" "GET-LABEL")))
+      (ok info "should have accessor type info")
+      (ok (eq (getf (first (tycl:function-params info)) :type) :t)
+          "param type should be widened to :t"))))
+
+(deftest test-accessor-type-check-in-function
+  (testing "Accessor return type is used in type checking"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defclass dog ()
+            (([breed :string] :initarg :breed :accessor dog-breed)))
+          (defun [get-breed :string] ([d dog])
+            (dog-breed d))")
+      (ok result "should pass")
+      (ok (null errors) "should have no errors"))))
+
+(deftest test-accessor-type-mismatch
+  (testing "Accessor return type mismatch produces error"
+    (multiple-value-bind (errors result)
+        (check-and-get-errors
+         "(defclass dog ()
+            (([breed :string] :initarg :breed :accessor dog-breed)))
+          (defun [get-breed :integer] ([d dog])
+            (dog-breed d))")
+      (ng result "should fail")
+      (ok (not (null errors)) "should have errors"))))
+
+;;; ============================================================
+;;; Common Superclass Computation Tests
+;;; ============================================================
+
+(deftest test-defmethod-auto-generic-common-superclass
+  (testing "Auto-created generic computes common superclass for param type"
+    (tycl:clear-type-database)
+    (let ((tycl:*current-package* "TEST-PKG"))
+      (dolist (form-str '("(defclass animal () ())"
+                          "(defclass dog (animal) ())"
+                          "(defclass cat (animal) ())"
+                          "(defmethod [describe :string] ([a dog]) \"dog\")"
+                          "(defmethod [describe :string] ([a cat]) \"cat\")"))
+        (tycl:extract-type-from-form
+         (let ((*readtable* tycl/reader:*tycl-readtable*))
+           (read-from-string form-str)))))
+    (let ((info (tycl:lookup-type-info "TEST-PKG" "DESCRIBE")))
+      (ok info "should have type info")
+      (ok (typep info 'tycl:generic-function-type-info)
+          "should be generic-function-type-info")
+      (ok (string= "ANIMAL"
+                    (symbol-name (getf (first (tycl:function-params info)) :type)))
+          "param type should be common superclass ANIMAL")
+      (ok (eq (tycl:function-return-type info) :string)
+          "return type should be :string (both methods agree)"))))
+
+(deftest test-defmethod-auto-generic-no-common-superclass
+  (testing "Auto-created generic falls back to :t for unrelated classes"
+    (tycl:clear-type-database)
+    (let ((tycl:*current-package* "TEST-PKG"))
+      (dolist (form-str '("(defclass foo () ())"
+                          "(defclass bar () ())"
+                          "(defmethod [show :void] ([obj foo]) nil)"
+                          "(defmethod [show :void] ([obj bar]) nil)"))
+        (tycl:extract-type-from-form
+         (let ((*readtable* tycl/reader:*tycl-readtable*))
+           (read-from-string form-str)))))
+    (let ((info (tycl:lookup-type-info "TEST-PKG" "SHOW")))
+      (ok info "should have type info")
+      (ok (eq (getf (first (tycl:function-params info)) :type) :t)
+          "param type should be :t for unrelated classes"))))
+
+(deftest test-defmethod-auto-generic-return-type-mismatch
+  (testing "Auto-created generic uses :t when return types differ"
+    (tycl:clear-type-database)
+    (let ((tycl:*current-package* "TEST-PKG"))
+      (dolist (form-str '("(defclass foo () ())"
+                          "(defclass bar () ())"
+                          "(defmethod [convert :string] ([obj foo]) \"foo\")"
+                          "(defmethod [convert :integer] ([obj bar]) 42)"))
+        (tycl:extract-type-from-form
+         (let ((*readtable* tycl/reader:*tycl-readtable*))
+           (read-from-string form-str)))))
+    (let ((info (tycl:lookup-type-info "TEST-PKG" "CONVERT")))
+      (ok (eq (tycl:function-return-type info) :t)
+          "return type should be :t when methods disagree"))))
