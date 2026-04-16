@@ -29,8 +29,9 @@ exec ros -Q -- $0 "$@"
   (format t "~&  check-all <file.asd>~%")
   (format t "~&      Check all .tycl files defined in a .asd file~%")
   (format t "~&      Processes all tycl-file components in all tycl-systems~%~%")
-  (format t "~&  install <package-name>~%")
+  (format t "~&  install <package-name> [version]~%")
   (format t "~&      Download type declarations for a package from tycl-declarations repository~%")
+  (format t "~&      If version is omitted, downloads the latest version~%")
   (format t "~&      Files are saved to tycl-declarations/ in the current directory~%")
   (format t "~&      Set TYCL_DECLARATIONS_URL to override the repository base URL~%~%")
   (format t "~&  lsp [--swank [port]]~%")
@@ -48,6 +49,7 @@ exec ros -Q -- $0 "$@"
   (format t "~&  tycl check-all sample-project.asd~%")
   (format t "~&  tycl install common-lisp~%")
   (format t "~&  tycl install cl-ppcre~%")
+  (format t "~&  tycl install cl-ppcre 0.2.0~%")
   (format t "~&  tycl lsp~%")
   (format t "~&  tycl lsp --swank~%")
   (format t "~&  tycl lsp --swank 9999~%"))
@@ -150,11 +152,21 @@ exec ros -Q -- $0 "$@"
   "Base URL for tycl-declarations repository.
    Can be overridden with TYCL_DECLARATIONS_URL environment variable.")
 
-(defun declarations-file-url (package-name)
+(defun declarations-file-url (package-name &optional version)
   "Build the URL for a declaration file.
-   e.g. common-lisp -> <base>/packages/common-lisp/common-lisp.d.tycl"
-  (format nil "~A/packages/~A/~A.d.tycl"
-          *declarations-base-url* package-name package-name))
+   If VERSION is specified: <base>/packages/<pkg>/<pkg>-<version>.d.tycl
+   If VERSION is nil:       <base>/packages/<pkg>/<pkg>.d.tycl"
+  (if version
+      (format nil "~A/packages/~A/~A-~A.d.tycl"
+              *declarations-base-url* package-name package-name version)
+      (format nil "~A/packages/~A/~A.d.tycl"
+              *declarations-base-url* package-name package-name)))
+
+(defun meta-file-url (package-name)
+  "Build the URL for a package's meta.sexp file.
+   e.g. cl-ppcre -> <base>/packages/cl-ppcre/meta.sexp"
+  (format nil "~A/packages/~A/meta.sexp"
+          *declarations-base-url* package-name))
 
 (defun download-file (url output-path)
   "Download a file from URL to OUTPUT-PATH using dexador.
@@ -167,6 +179,41 @@ exec ros -Q -- $0 "$@"
     (funcall dex-fetch url output-path :if-exists :supersede)
     t))
 
+(defun download-to-string (url)
+  "Download content from URL and return as a string.
+   Returns the string on success, NIL on failure."
+  #+quicklisp(ql:quickload '(:dexador) :silent t)
+  (let ((dex-get (find-symbol "GET" (find-package :dexador))))
+    (unless dex-get
+      (error "dexador is not available. Install it via Quicklisp."))
+    (funcall dex-get url)))
+
+(defun fetch-meta (package-name)
+  "Fetch and parse meta.sexp for a package.
+   Returns the plist on success, NIL if meta.sexp does not exist."
+  (handler-case
+      (let ((content (download-to-string (meta-file-url package-name))))
+        (when (and content (stringp content))
+          (read-from-string content)))
+    (error () nil)))
+
+(defun resolve-version (package-name requested-version)
+  "Resolve the version to download.
+   If REQUESTED-VERSION is specified, use it directly.
+   If nil, fetch meta.sexp and use :latest.
+   Returns (values version source) where source is :specified, :latest, or :fallback."
+  (cond
+    (requested-version
+     (values requested-version :specified))
+    (t
+     (let ((meta (fetch-meta package-name)))
+       (if meta
+           (let ((latest (getf meta :latest)))
+             (if latest
+                 (values latest :latest)
+                 (values nil :fallback)))
+           (values nil :fallback))))))
+
 (defun cmd-install (argv)
   "Handle install command - download declaration files from tycl-declarations repository"
   (cond
@@ -175,19 +222,29 @@ exec ros -Q -- $0 "$@"
      (print-usage)
      (uiop:quit 1))
     (t
-     (let ((package-name (first argv)))
+     (let ((package-name (first argv))
+           (requested-version (second argv)))
        (handler-case
-           (let* ((url (declarations-file-url package-name))
-                  (output-dir (merge-pathnames
-                               (make-pathname :directory `(:relative "tycl-declarations"))
-                               *default-pathname-defaults*))
-                  (output-path (merge-pathnames
-                                (format nil "~A.d.tycl" package-name)
-                                output-dir)))
-             (format t "~&Downloading ~A...~%" url)
-             (download-file url output-path)
-             (format t "~&Installed to ~A~%" output-path)
-             (uiop:quit 0))
+           (multiple-value-bind (version source)
+               (resolve-version package-name requested-version)
+             (let* ((url (declarations-file-url package-name version))
+                    (output-dir (merge-pathnames
+                                 (make-pathname :directory `(:relative "tycl-declarations"))
+                                 *default-pathname-defaults*))
+                    (output-path (merge-pathnames
+                                  (format nil "~A.d.tycl" package-name)
+                                  output-dir)))
+               (case source
+                 (:specified
+                  (format t "~&Downloading ~A version ~A...~%" package-name version))
+                 (:latest
+                  (format t "~&Downloading ~A latest version ~A...~%" package-name version))
+                 (:fallback
+                  (format t "~&Downloading ~A (no version info available)...~%" package-name)))
+               (format t "~&  ~A~%" url)
+               (download-file url output-path)
+               (format t "~&Installed to ~A~%" output-path)
+               (uiop:quit 0)))
          (error (e)
            (format t "~&Error installing ~A: ~A~%" package-name e)
            (uiop:quit 1)))))))
