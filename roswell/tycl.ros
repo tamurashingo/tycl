@@ -34,6 +34,10 @@ exec ros -Q -- $0 "$@"
   (format t "~&      If version is omitted, downloads the latest version~%")
   (format t "~&      Files are saved to tycl-declarations/ in the current directory~%")
   (format t "~&      Set TYCL_DECLARATIONS_URL to override the repository base URL~%~%")
+  (format t "~&  install-from <file.asd>~%")
+  (format t "~&      Download type declarations for all dependencies in an .asd file~%")
+  (format t "~&      Reads :depends-on and downloads declarations for each dependency~%")
+  (format t "~&      Version constraints ((:version \"pkg\" \"ver\")) are respected~%~%")
   (format t "~&  lsp [--swank [port]]~%")
   (format t "~&      Start LSP server (Language Server Protocol)~%")
   (format t "~&      Communicates via stdin/stdout using JSON-RPC~%")
@@ -50,6 +54,7 @@ exec ros -Q -- $0 "$@"
   (format t "~&  tycl install common-lisp~%")
   (format t "~&  tycl install cl-ppcre~%")
   (format t "~&  tycl install cl-ppcre 0.2.0~%")
+  (format t "~&  tycl install-from sample-project.asd~%")
   (format t "~&  tycl lsp~%")
   (format t "~&  tycl lsp --swank~%")
   (format t "~&  tycl lsp --swank 9999~%"))
@@ -249,6 +254,111 @@ exec ros -Q -- $0 "$@"
            (format t "~&Error installing ~A: ~A~%" package-name e)
            (uiop:quit 1)))))))
 
+(defun parse-dependency (dep)
+  "Parse a single dependency entry from :depends-on.
+   Returns (package-name . version-or-nil) or NIL if not parseable.
+   Handles: string, symbol, keyword, (:version name ver)."
+  (cond
+    ((stringp dep)
+     (cons (string-downcase dep) nil))
+    ((and (symbolp dep) (not (keywordp dep)))
+     (cons (string-downcase (symbol-name dep)) nil))
+    ((and (listp dep)
+          (eq (first dep) :version)
+          (>= (length dep) 3))
+     (let ((name (second dep))
+           (ver (third dep)))
+       (cons (string-downcase (if (stringp name) name (symbol-name name)))
+             (if (stringp ver) ver (symbol-name ver)))))
+    (t nil)))
+
+(defun extract-dependencies-from-asd (asd-path)
+  "Parse .asd file and extract :depends-on entries from all defsystem forms.
+   Returns list of (package-name . version-or-nil), deduplicated."
+  (let ((deps '()))
+    (with-open-file (in asd-path :direction :input)
+      (let ((*read-eval* nil))
+        (handler-bind
+            ((package-error
+               (lambda (c)
+                 (declare (ignore c))
+                 (let ((restart (find-restart 'continue)))
+                   (when restart (invoke-restart restart))))))
+          (loop for form = (read in nil :eof)
+                until (eq form :eof)
+                do (when (and (listp form)
+                              (symbolp (first form))
+                              (string-equal "DEFSYSTEM" (symbol-name (first form))))
+                     ;; Walk the plist-like tail of defsystem
+                     (loop for (key val) on (cddr form) by #'cddr
+                           when (and (keywordp key)
+                                     (string-equal "DEPENDS-ON" (symbol-name key))
+                                     (listp val))
+                           do (dolist (dep val)
+                                (let ((parsed (parse-dependency dep)))
+                                  (when parsed
+                                    (pushnew parsed deps
+                                             :key #'car :test #'string=))))))))))
+    (nreverse deps)))
+
+(defun install-single-package (package-name version output-dir)
+  "Install a single declaration file. Returns T on success, NIL on failure."
+  (handler-case
+      (multiple-value-bind (resolved-version source)
+          (resolve-version package-name version)
+        (let* ((url (declarations-file-url package-name resolved-version))
+               (output-path (merge-pathnames
+                              (format nil "~A.d.tycl" package-name)
+                              output-dir)))
+          (case source
+            (:specified
+             (format t "~&  ~A (version ~A)..." package-name resolved-version))
+            (:latest
+             (format t "~&  ~A (latest: ~A)..." package-name resolved-version))
+            (:fallback
+             (format t "~&  ~A..." package-name)))
+          (download-file url output-path)
+          (format t " ok~%")
+          t))
+    (error (e)
+      (format t " FAILED: ~A~%" e)
+      nil)))
+
+(defun cmd-install-from (argv)
+  "Handle install-from command - install declarations for all dependencies in an .asd file"
+  (cond
+    ((null argv)
+     (format t "~&Error: No .asd file specified~%")
+     (print-usage)
+     (uiop:quit 1))
+    (t
+     (let* ((asd-path (first argv))
+            (path (probe-file asd-path)))
+       (unless path
+         (format t "~&Error: File not found: ~A~%" asd-path)
+         (uiop:quit 1))
+       (handler-case
+           (let* ((deps (extract-dependencies-from-asd path))
+                  (output-dir (merge-pathnames
+                                (make-pathname :directory '(:relative "tycl-declarations"))
+                                *default-pathname-defaults*))
+                  (success 0)
+                  (failed 0))
+             (if (null deps)
+                 (format t "~&No dependencies found in ~A~%" asd-path)
+                 (progn
+                   (format t "~&Installing declarations for ~A (~A dependencies):~%"
+                           asd-path (length deps))
+                   (dolist (dep deps)
+                     (if (install-single-package (car dep) (cdr dep) output-dir)
+                         (incf success)
+                         (incf failed)))
+                   (format t "~&Done: ~A installed, ~A failed~%" success failed)))
+             (uiop:quit (if (> failed 0) 1 0)))
+         (error (e)
+           (format t "~&Error reading ~A: ~A~%" asd-path e)
+           (uiop:quit 1)))))))
+
 (defun start-swank-server (port)
   "Start Swank server on the specified port"
   #+quicklisp(ql:quickload '(:swank) :silent t)
@@ -327,6 +437,10 @@ exec ros -Q -- $0 "$@"
     ;; Check command
     ((string= (first argv) "check")
      (cmd-check (rest argv)))
+
+    ;; Install-from command (must be before install)
+    ((string= (first argv) "install-from")
+     (cmd-install-from (rest argv)))
 
     ;; Install command
     ((string= (first argv) "install")
