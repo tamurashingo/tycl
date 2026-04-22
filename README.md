@@ -66,15 +66,17 @@ tycl check-all <file.asd>
 Download type declaration files for external libraries from the [tycl-declarations](https://github.com/tamurashingo/tycl-declarations) repository. Downloaded files are saved to `tycl-declarations/` in the current directory, where `check-all` and `transpile-all` automatically load them.
 
 ```bash
-tycl install <package-name>
+tycl install <package-name> [version]
 ```
 
+If version is omitted, the latest version is determined from the package's `meta.sexp` in the repository. If no `meta.sexp` exists, the unversioned file is downloaded as a fallback.
+
 ```bash
-# Install Common Lisp standard library declarations
+# Install Common Lisp standard library declarations (latest)
 tycl install common-lisp
 
-# Install declarations for cl-ppcre
-tycl install cl-ppcre
+# Install a specific version
+tycl install cl-ppcre 0.2.0
 ```
 
 To use a custom declarations repository, set the `TYCL_DECLARATIONS_URL` environment variable:
@@ -82,6 +84,20 @@ To use a custom declarations repository, set the `TYCL_DECLARATIONS_URL` environ
 ```bash
 TYCL_DECLARATIONS_URL=https://raw.githubusercontent.com/yourname/your-declarations/main \
   tycl install my-library
+```
+
+### tycl install-from
+
+Download type declarations for all dependencies listed in a `.asd` file. Reads `:depends-on` from all `defsystem` forms and installs declarations for each dependency.
+
+```bash
+tycl install-from <file.asd>
+```
+
+Version constraints using ASDF's `(:version "pkg" "ver")` syntax are respected. Dependencies without version constraints use the latest version.
+
+```bash
+tycl install-from sample-project.asd
 ```
 
 ### tycl lsp
@@ -336,6 +352,34 @@ Multi-level inheritance is also supported:
 ```
 
 Subtype checking is directional: a parent class cannot be used where a child type is expected, and unrelated classes are not compatible with each other.
+
+### Accessor Type Inference
+
+When a `defclass` slot has `:accessor` or `:reader`, TyCL automatically infers the accessor function's type from the slot type annotation. No separate function declaration is needed.
+
+```lisp
+(defclass person ()
+  (([name :string] :initarg :name :accessor person-name)
+   ([age :integer] :initarg :age :reader person-age)))
+
+;; person-name is automatically typed as (person) -> :string
+;; person-age  is automatically typed as (person) -> :integer
+
+(defun [greeting :string] ([p person])
+  (person-name p))  ; OK — return type is :string
+
+(defun [bad :integer] ([p person])
+  (person-name p))  ; Type error — :string is not compatible with :integer
+```
+
+If the same accessor name appears on multiple classes, the parameter and return types are widened to `:t`:
+
+```lisp
+(defclass book ()    (([label :string] :accessor get-label)))
+(defclass product () (([label :keyword] :accessor get-label)))
+
+;; get-label is typed as (:t) -> :t because it spans multiple classes
+```
 
 ### Type Casting
 
