@@ -10,7 +10,7 @@
 (in-package #:tycl-system)
 
 (defsystem tycl
-  :version "1.0.0"
+  :version "1.1.0"
   :author "tamura shingo"
   :license "MIT"
   :description "TyCL - Typed Common Lisp: Gradual typing for Common Lisp with LSP support"
